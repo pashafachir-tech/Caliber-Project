@@ -1,0 +1,1969 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08111e">
+  <title>CAP-LOOP | Case 2 Reliability Cockpit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111e;
+      --panel: #101c2b;
+      --panel-2: #132235;
+      --line: #23364b;
+      --muted: #93a5b8;
+      --text: #e8f0f7;
+      --blue: #5da9ff;
+      --teal: #55d6be;
+      --amber: #f2bd58;
+      --red: #ff737b;
+      --green: #63d7a1;
+      --radius: 16px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(ellipse at 16% -20%, #173251 0, transparent 42%), var(--bg); color: var(--text); min-height: 100vh; }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    .shell { width: min(1500px, calc(100% - 36px)); margin: 0 auto; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 0 18px; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 13px; min-width: 260px; }
+    .brand-mark { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: #07131f; font-size: 20px; font-weight: 900; background: linear-gradient(135deg, var(--teal), var(--blue)); box-shadow: 0 8px 26px #55d6be22; }
+    .brand h1 { margin: 0; font-size: 17px; letter-spacing: .08em; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 11px; letter-spacing: .11em; }
+    .top-meta { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: #0b1725; color: #bfcedc; padding: 7px 10px; border-radius: 999px; font-size: 11px; }
+    .led { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px currentColor; }
+    .banner { display: none; margin: 16px 0 0; border: 1px solid #855d23; border-radius: 12px; background: #332713; color: #ffdf9e; padding: 11px 14px; font-size: 12px; line-height: 1.55; }
+    .banner.visible { display: block; }
+    .banner.error { border-color: #863d47; background: #321a20; color: #ffb9bd; }
+    #file-banner { display: none !important; }
+    .main-nav { display: flex; gap: 6px; overflow-x: auto; border-bottom: 1px solid var(--line); padding: 15px 0 0; }
+    .nav-button { position: relative; border: 0; background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; padding: 11px 15px 14px; font-size: 13px; font-weight: 650; }
+    .nav-button:hover, .nav-button.active { color: var(--text); }
+    .nav-button.active::after { position: absolute; content: ""; left: 14px; right: 14px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--teal); }
+    main { padding: 23px 0 48px; }
+    .tab-panel { display: none; animation: rise .18s ease-out; }
+    .tab-panel.active { display: block; }
+    @keyframes rise { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin: 0 0 18px; }
+    .page-heading h2 { margin: 0; font-size: 21px; letter-spacing: -.02em; }
+    .page-heading p { margin: 6px 0 0; max-width: 820px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .eyebrow { color: var(--teal); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 750; margin-bottom: 7px; }
+    .grid { display: grid; gap: 14px; }
+    .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .two-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .three-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .panel, .metric-card { border: 1px solid var(--line); background: linear-gradient(160deg, #122034, #0e1a29 80%); border-radius: var(--radius); box-shadow: 0 12px 32px #00000012; }
+    .metric-card { min-height: 148px; padding: 17px 18px; }
+    .metric-label { display: flex; align-items: center; gap: 7px; color: #aabacc; font-size: 11px; line-height: 1.45; text-transform: uppercase; letter-spacing: .08em; }
+    .info-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: 17px; height: 17px; padding: 0; border: 1px solid #526a80; border-radius: 50%; background: #0b1725; color: #9fb4c8; font-size: 10px; line-height: 1; cursor: help; }
+    .info-icon:hover, .info-icon:focus-visible { border-color: var(--teal); color: var(--teal); }
+    .metric-value { margin-top: 13px; color: white; font-size: clamp(22px, 2.4vw, 32px); font-weight: 760; letter-spacing: -.04em; }
+    .metric-foot { margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .metric-card.risk { border-top: 2px solid var(--red); }
+    .metric-card.backlog { border-top: 2px solid var(--amber); }
+    .metric-card.energy { border-top: 2px solid var(--teal); }
+    .metric-card.overdue { border-top: 2px solid var(--blue); }
+    .metric-card.capa-banner { grid-column: 1 / -1; min-height: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; border: 1px solid #28786f; background: linear-gradient(110deg, #123335, #12243a 72%); box-shadow: 0 12px 32px #0b716122; }
+    .capa-banner h3 { margin: 0; color: #c8fff1; font-size: 14px; letter-spacing: .03em; }
+    .capa-banner .metric-value { margin-top: 7px; color: #8ff0d7; font-size: clamp(21px, 2.7vw, 30px); }
+    .capa-banner .metric-foot { max-width: 840px; margin-top: 5px; }
+    .executive-insights { margin: 14px 0; }
+    .burn-down-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 8px 0 10px; }
+    .burn-down-stat { padding: 11px 12px; border: 1px solid #2a4055; border-radius: 10px; background: #0b1725; }
+    .burn-down-stat strong { display: block; color: #f3f7fb; font-size: 18px; }
+    .burn-down-stat span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .capa-table { min-width: 680px; }
+    .capa-status { display: inline-flex; border: 1px solid #38546b; border-radius: 999px; padding: 4px 8px; font-size: 9px; white-space: nowrap; }
+    .capa-status.open { color: #ffd17a; border-color: #8b6929; background: #2c2415; }
+    .capa-status.in-progress { color: #91c8ff; border-color: #35648a; background: #12263a; }
+    .capa-status.closed { color: #88e4b3; border-color: #31694e; background: #11271f; }
+    .panel { padding: 18px; }
+    .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+    .panel-heading h3 { margin: 0; font-size: 14px; }
+    .panel-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .panel-kicker { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .11em; }
+    .comparison { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; padding: 15px 16px; border-left: 3px solid var(--amber); background: #2a2315; color: #f8e7c3; border-radius: 0 12px 12px 0; margin: 14px 0; font-size: 14px; line-height: 1.65; }
+    .comparison strong { color: white; }
+    .source-number { text-decoration: underline dotted #73869b; text-underline-offset: 3px; cursor: help; white-space: nowrap; }
+    .source-text { cursor: help; }
+    .muted { color: var(--muted); }
+    .positive { color: var(--green); }
+    .warning { color: var(--amber); }
+    .danger { color: var(--red); }
+    .accent { color: var(--teal); }
+    .small { font-size: 11px; }
+    .chart-wrap { height: 235px; position: relative; }
+    .chart-wrap.short { height: 190px; }
+    .chart-note { color: var(--muted); font-size: 10px; margin-top: 9px; line-height: 1.5; }
+    .compact-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .compact-list li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #1e3043; padding: 7px 0; font-size: 11px; }
+    .compact-list li:last-child { border-bottom: 0; }
+    .inline-control { display: flex; align-items: center; gap: 8px; }
+    .inline-control label, .control-label { color: var(--muted); font-size: 11px; }
+    select { min-width: 145px; border: 1px solid var(--line); border-radius: 8px; background: #091522; color: var(--text); padding: 8px 10px; outline: none; }
+    select:focus, input:focus-visible, button:focus-visible { outline: 2px solid #5da9ff; outline-offset: 2px; }
+    .subnav { display: flex; gap: 6px; margin: 0 0 14px; }
+    .subnav button, .button { border: 1px solid var(--line); border-radius: 9px; background: #0d1a29; color: #becbd8; padding: 8px 11px; cursor: pointer; font-size: 11px; font-weight: 650; transition: .15s ease; }
+    .subnav button:hover, .button:hover { border-color: #527697; color: white; }
+    .subnav button.active { color: var(--teal); border-color: #2b786f; background: #102b2d; }
+    .button.primary { background: #126b6a; border-color: #16817d; color: white; }
+    .button.primary:hover { background: #16817d; }
+    .button.danger-button { border-color: #74434a; color: #ffb6bb; }
+    .button.confirm-button { border-color: #327455; color: #93edbb; }
+    .button:disabled { opacity: .42; cursor: not-allowed; }
+    .subview { display: none; }
+    .subview.active { display: block; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; min-width: 780px; }
+    th { background: #0b1725; color: #91a5b9; text-align: left; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 11px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    td { border-bottom: 1px solid #1c2c3f; padding: 11px 12px; font-size: 11px; vertical-align: top; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: #142439; }
+    .tag-button { border: 0; background: none; padding: 0; color: #dff1ff; font-weight: 750; cursor: pointer; }
+    .tag-button:hover { color: var(--teal); }
+    .status-chip { display: inline-flex; border: 1px solid #38546b; border-radius: 999px; padding: 4px 8px; color: #cfdeea; background: #0b1826; font-size: 10px; white-space: nowrap; }
+    .status-chip.alarm { color: #ffd17a; border-color: #8b6929; background: #2c2415; }
+    .status-chip.trip { color: #ff9ca2; border-color: #8b4149; background: #2b171d; }
+    .status-chip.normal { color: #88e4b3; border-color: #31694e; background: #11271f; }
+    .table-empty, .empty-state { color: var(--muted); text-align: center; padding: 26px 16px; font-size: 12px; }
+    .replay-controls { display: grid; grid-template-columns: minmax(180px, 250px) 1fr; gap: 18px; align-items: end; }
+    .slider-shell { min-width: 0; }
+    .slider-readout { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; }
+    .slider-readout strong { font-size: 15px; }
+    .replay-presets { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 10px; }
+    .preset-button { border: 1px solid #2b4056; border-radius: 8px; background: #0b1725; color: #aebfd0; padding: 7px 9px; font-size: 10px; font-weight: 650; cursor: pointer; transition: .15s ease; }
+    .preset-button:hover { border-color: #4d7797; color: white; }
+    .preset-button.active { border-color: #34867c; background: #123031; color: #72e3cb; }
+    .slider-line { position: relative; padding-top: 33px; }
+    .marker-layer { pointer-events: none; position: absolute; inset: 0 0 9px; }
+    .event-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--blue); }
+    .event-marker.alarm { border-color: var(--amber); }
+    .event-marker.trip { border-color: var(--red); }
+    .event-marker-label { position: absolute; top: 0; left: 4px; transform: translateX(-4px); white-space: nowrap; font-size: 9px; color: var(--blue); padding: 2px 4px; background: #0c1927; border-radius: 4px; }
+    .event-marker.alarm .event-marker-label { top: 12px; color: var(--amber); }
+    .event-marker.trip .event-marker-label { top: 24px; color: var(--red); }
+    input[type="range"] { width: 100%; accent-color: var(--teal); cursor: pointer; margin: 0; }
+    .range-bounds { display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; margin-top: 3px; }
+    .marker-legend { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 12px; color: var(--muted); font-size: 10px; }
+    .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; background: var(--blue); }
+    .legend-dot.alarm { background: var(--amber); }
+    .legend-dot.trip { background: var(--red); }
+    .cockpit-card { border: 1px solid #28415a; border-radius: 13px; background: linear-gradient(140deg, #12273a, #0b1827); padding: 16px; min-height: 168px; }
+    .cockpit-card h3 { margin: 0 0 9px; font-size: 13px; color: #cfe8ff; }
+    .cockpit-card p { margin: 7px 0; color: #bccbda; font-size: 11px; line-height: 1.65; }
+    .replay-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; margin-top: 14px; }
+    .select-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .hypothesis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .hypothesis-card { border: 1px solid var(--line); border-radius: 14px; background: #0d1a29; padding: 16px; }
+    .hypothesis-card h3 { margin: 0; font-size: 14px; line-height: 1.5; }
+    .hypothesis-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .match-badge { flex: 0 0 auto; border: 1px solid #27675f; border-radius: 999px; padding: 5px 8px; color: #7ee2cb; background: #102a2b; font-size: 10px; }
+    .candidate-confidence { flex: 0 0 auto; border: 1px solid #395a7a; border-radius: 999px; padding: 5px 8px; color: #c2ddff; background: #13243a; font-size: 10px; white-space: nowrap; }
+    .candidate-confidence.high { border-color: #327455; color: #93edbb; background: #11271f; }
+    .candidate-confidence.low { border-color: #8b6929; color: #ffd17a; background: #2c2415; }
+    .rca-meta-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0 0 14px; }
+    .rca-meta-badge { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 5px 9px; border: 1px solid #2b4056; border-radius: 999px; background: #0c1927; color: #c5d4e2; font-size: 10px; line-height: 1.35; }
+    .rca-meta-badge strong { color: #f1f6fa; font-weight: 750; }
+    .rca-meta-badge.replay { border-color: #2b786f; color: #72e3cb; background: #102b2d; }
+    .review-weight-note { margin: -5px 0 13px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .visual-evidence-grid { display: grid; grid-template-columns: 1fr; gap: 9px; margin-top: 14px; }
+    .visual-tile { display: flex; min-width: 0; flex-direction: column; padding: 0; overflow: hidden; border: 1px solid #2a4055; border-radius: 11px; background: #0a1623; text-align: left; cursor: zoom-in; }
+    .visual-tile:hover { border-color: #5da9ff; background: #102033; }
+    .visual-tile-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 10px 5px; color: #90a7bc; font-size: 8px; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+    .visual-tile-caption { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px 9px; color: #cad8e5; font-size: 9px; line-height: 1.4; }
+    .visual-unavailable { min-height: 125px; display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 12px; border-top: 1px solid #203449; border-bottom: 1px solid #203449; background: repeating-linear-gradient(135deg, #0e1b29, #0e1b29 9px, #101e2d 9px, #101e2d 18px); text-align: center; }
+    .visual-unavailable strong { color: #c0cedb; font-size: 10px; }
+    .visual-unavailable span { max-width: 210px; color: #8196aa; font-size: 9px; line-height: 1.5; }
+    .visual-diagram-img { display: block; width: 100%; min-height: 150px; height: auto; aspect-ratio: 920 / 280; object-fit: contain; border-top: 1px solid #203449; border-bottom: 1px solid #203449; background: #0a1623; }
+    .inspection-tag-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px; border-top: 1px solid #203449; border-bottom: 1px solid #203449; background: linear-gradient(135deg, #102033, #0b1724); }
+    .inspection-tag-main { display: flex; min-width: 0; align-items: center; gap: 11px; }
+    .inspection-tag-icon { display: grid; flex: 0 0 42px; width: 42px; height: 42px; place-items: center; border: 1px solid #345773; border-radius: 11px; background: #0b1724; color: #65d6c1; }
+    .inspection-tag-copy { min-width: 0; }
+    .inspection-tag-copy small, .inspection-metric small, .inspection-footnote { color: #8da4ba; font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .inspection-tag-copy strong { display: block; overflow-wrap: anywhere; color: #f2f7fb; font-size: 15px; }
+    .inspection-tag-copy span { display: block; margin-top: 3px; color: #72d9c6; font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+    .inspection-state { align-self: center; }
+    .inspection-metrics { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .inspection-metric { min-width: 0; padding: 9px 10px; border: 1px solid #263d53; border-radius: 9px; background: #0a1623; }
+    .inspection-metric-label { display: block; overflow-wrap: anywhere; color: #90a7bc; font-size: 8px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+    .inspection-metric strong { display: block; margin: 4px 0; color: #f2f7fb; font-size: 17px; }
+    .inspection-metric strong small { color: #b0c2d2; font-size: 9px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+    .inspection-metric-foot { color: #98aec1; font-size: 8px; line-height: 1.4; }
+    .inspection-footnote { grid-column: 1 / -1; font-size: 8px; letter-spacing: .03em; text-transform: none; }
+    .visual-modal { width: min(1000px, calc(100vw - 28px)); max-width: none; max-height: calc(100vh - 28px); padding: 0; overflow: auto; border: 1px solid #39556f; border-radius: 18px; background: #101c2b; color: var(--text); box-shadow: 0 28px 90px #000a; }
+    .visual-modal::backdrop { background: #020711d4; backdrop-filter: blur(5px); }
+    .visual-modal-inner { padding: 20px; }
+    .visual-modal-content { margin-top: 14px; border: 1px solid #263d53; border-radius: 12px; overflow: hidden; background: #0a1623; }
+    .visual-modal-content img { display: block; width: 100%; height: auto; }
+    .visual-modal-content .inspection-tag-card { padding: 24px; gap: 18px; }
+    .visual-modal-content .inspection-tag-icon { flex-basis: 58px; width: 58px; height: 58px; }
+    .visual-modal-content .inspection-tag-copy strong { font-size: 22px; }
+    .visual-modal-content .inspection-metric { padding: 15px; }
+    .visual-modal-content .inspection-metric strong { font-size: 25px; }
+    .visual-modal-content .inspection-metric-label, .visual-modal-content .inspection-metric-foot, .visual-modal-content .inspection-footnote { font-size: 10px; }
+    .visual-modal-content .inspection-tag-copy small, .visual-modal-content .inspection-tag-copy span { font-size: 11px; }
+    .visual-modal-content .visual-unavailable { min-height: 320px; }
+    .visual-modal-content .visual-unavailable strong { font-size: 15px; }
+    .visual-modal-content .visual-unavailable span { max-width: 500px; font-size: 12px; }
+    .visual-modal-source { margin-top: 10px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .evidence-title { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .12em; margin: 16px 0 7px; }
+    .evidence { border-left: 2px solid var(--green); background: #10231e; padding: 9px 10px; margin: 6px 0; border-radius: 0 8px 8px 0; color: #c7d9d1; font-size: 10px; line-height: 1.6; }
+    .evidence.refute { border-color: var(--amber); background: #251f15; color: #e0d4bb; }
+    .evidence .field { color: white; font-weight: 700; }
+    .hyp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 12px; }
+    .hyp-actions .note { flex-basis: 100%; }
+    .similar-table { min-width: 720px; }
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    .action-box { border: 1px solid var(--line); border-radius: 13px; background: #0e1b2a; padding: 15px; }
+    .action-box h3 { margin: 0 0 8px; font-size: 13px; }
+    .action-box p { color: var(--muted); font-size: 10px; line-height: 1.6; }
+    .rational-summary { margin: 0 0 14px; }
+    .rational-step { position: relative; padding: 18px; overflow: hidden; }
+    .rational-step strong { display: block; margin: 7px 0 2px; font-size: 27px; letter-spacing: -.04em; color: #f4f8fc; }
+    .rational-step span { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
+    .reconciliation-callout { margin: 0 0 13px; border-left-color: var(--blue); background: #11243a; color: #c9d9e8; }
+    .dispatch-modal { width: min(660px, calc(100vw - 28px)); max-width: none; max-height: calc(100vh - 28px); padding: 0; border: 1px solid #39556f; border-radius: 18px; background: #101c2b; color: var(--text); box-shadow: 0 28px 90px #000a; }
+    .dispatch-modal::backdrop { background: #020711c9; backdrop-filter: blur(5px); }
+    .dispatch-modal-inner { padding: 23px; }
+    .dispatch-modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+    .dispatch-modal-head h2 { margin: 0; font-size: 19px; }
+    .dispatch-modal-head p { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .modal-close { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 9px; background: #0b1725; cursor: pointer; color: #aebfd0; }
+    .contract-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 19px 0; }
+    .contract-field { min-width: 0; border: 1px solid #24384c; border-radius: 11px; background: #0b1725; padding: 12px; }
+    .contract-field.wide { grid-column: 1 / -1; }
+    .contract-field dt { color: #8fa5ba; font-size: 9px; letter-spacing: .11em; text-transform: uppercase; }
+    .contract-field dd { margin: 6px 0 0; color: #edf4fa; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+    .contract-warning { margin: 12px 0; border: 1px solid #785c2d; border-radius: 10px; background: #2a2316; color: #efdaa9; padding: 10px 12px; font-size: 10px; line-height: 1.55; }
+    .dispatch-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 17px; }
+    .postrepair-list { display: grid; gap: 6px; margin: 10px 0; }
+    .reading-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid #203145; font-size: 10px; }
+    .reading-row:last-child { border-bottom: 0; }
+    .note { color: var(--muted); font-size: 10px; line-height: 1.6; }
+    .source-legend { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: 12px; color: #778ba0; font-size: 9px; }
+    .footer { padding: 14px 0 22px; border-top: 1px solid var(--line); color: #76899d; font-size: 10px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    code { background: #0a1622; border: 1px solid #25384b; border-radius: 5px; padding: 2px 5px; color: #c7d8e8; }
+    @media (max-width: 1050px) {
+      .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .three-grid { grid-template-columns: 1fr 1fr; }
+      .replay-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 22px, 1500px); }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .top-meta { justify-content: flex-start; }
+      .metric-grid, .two-grid, .three-grid, .hypothesis-grid, .action-grid { grid-template-columns: 1fr; }
+      .metric-card { min-height: 128px; }
+      .replay-controls { grid-template-columns: 1fr; }
+      .page-heading { align-items: flex-start; flex-direction: column; }
+      .panel { padding: 14px; }
+      .event-marker-label { font-size: 8px; }
+      .contract-grid { grid-template-columns: 1fr; }
+      .contract-field.wide { grid-column: auto; }
+      .inspection-tag-card { grid-template-columns: 1fr; }
+      .inspection-state { justify-self: start; }
+      .metric-card.capa-banner { align-items: flex-start; flex-direction: column; gap: 7px; }
+      .burn-down-stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">↗</div>
+        <div>
+          <h1>CAP-LOOP</h1>
+          <p>CASE TWO · RELIABILITY COCKPIT</p>
+        </div>
+      </div>
+      <div class="top-meta">
+        <span class="pill"><span class="led"></span> Read-only analytics</span>
+        <span class="pill" id="asof-badge">Awaiting dashboard data</span>
+        <span class="pill" id="replay-badge">Replay unavailable</span>
+      </div>
+    </header>
+
+    <div id="file-banner" class="banner" role="status"></div>
+    <div id="load-error" class="banner error" role="alert"></div>
+
+    <nav class="main-nav" aria-label="Dashboard views">
+      <button id="nav-executive" class="nav-button active" data-tab="executive" aria-selected="true">Executive</button>
+      <button id="nav-problem-tank" class="nav-button" data-tab="problem-tank" aria-selected="false">Problem Tank</button>
+      <button id="nav-replay" class="nav-button" data-tab="replay" aria-selected="false">Replay</button>
+      <button id="nav-root-cause" class="nav-button" data-tab="root-cause" aria-selected="false">Root Cause &amp; Actions</button>
+    </nav>
+
+    <main>
+      <section id="tab-executive" class="tab-panel active" aria-labelledby="nav-executive">
+        <div class="subnav" aria-label="Executive subviews">
+          <button class="active" data-exec-view="overview">Overview</button>
+          <button data-exec-view="kill-list">Kill-list &amp; KPI Constitution</button>
+        </div>
+        <div id="exec-overview" class="subview active">
+          <div class="page-heading">
+            <div><div class="eyebrow">Plant exposure, kept separate</div><h2>Executive overview</h2><p>Historical loss backlog is not mixed with forward exposure. Hover every value for its source workbook and sheet.</p></div>
+          </div>
+          <div class="grid metric-grid">
+            <article class="metric-card backlog">
+              <div class="metric-label">Unclosed-Loss Backlog <button id="backlog-info" class="info-icon" type="button" aria-label="Backlog source and calculation" title="Source details load with dashboard data.">i</button></div>
+              <div class="metric-value" id="backlog-value">—</div>
+              <div class="metric-foot" id="backlog-foot">Historical loss linked to overdue open RCAs.</div>
+            </article>
+            <article class="metric-card risk">
+              <div class="metric-label">Forward Risk Exposure <button id="risk-info" class="info-icon" type="button" aria-label="Forward risk source and calculation" title="Source details load with dashboard data.">i</button></div>
+              <div class="metric-value" id="risk-value">—</div>
+              <div class="metric-foot" id="risk-foot">Risk on active alerts only.</div>
+            </article>
+            <article class="metric-card overdue">
+              <div class="metric-label">Overdue RCAs <button id="overdue-info" class="info-icon" type="button" aria-label="Overdue RCA source and calculation" title="Source details load with dashboard data.">i</button></div>
+              <div class="metric-value" id="overdue-value">—</div>
+              <div class="metric-foot" id="overdue-foot">Average days overdue: —</div>
+            </article>
+            <article class="metric-card energy">
+              <div class="metric-label">Energy load forecast <button id="energy-info" class="info-icon" type="button" aria-label="Energy load source and calculation" title="Select an asset to show its production source.">i</button></div>
+              <div class="metric-value" id="energy-value">—</div>
+              <div class="metric-foot" id="energy-foot">Expected motor load at observed plant rate.</div>
+            </article>
+          </div>
+
+          <article class="metric-card capa-banner" aria-live="polite">
+            <div>
+              <div class="metric-label">Closed-loop execution audit</div>
+              <h3>CAPA Action Resolution Rate</h3>
+              <div id="capa-resolution-rate" class="metric-value">—</div>
+              <div id="capa-resolution-subtitle" class="metric-foot">Real corrective and proactive actions from the five RCA assets.</div>
+            </div>
+            <span id="capa-asset-count" class="status-chip alarm">5 RCA assets</span>
+          </article>
+
+          <article class="panel" style="margin-top:14px" aria-label="RCA backlog burn-down plan">
+            <div class="panel-heading">
+              <div><div class="eyebrow">Impact prioritization</div><h3>RCA Backlog Burn-Down Plan</h3><p>Concentration of overdue RCA loss backlog.</p></div>
+              <span class="panel-kicker">Priority cohort</span>
+            </div>
+            <div class="burn-down-stats">
+              <div class="burn-down-stat"><strong>Top 10 · 34% · $5.94M</strong><span>Overdue RCAs and their share of backlog</span></div>
+              <div class="burn-down-stat"><strong>Top 20 · 55% · $9.52M</strong><span>Overdue RCAs and their share of backlog</span></div>
+            </div>
+            <p class="note" style="margin-bottom:0"><strong>Strategy:</strong> Prioritize the Top 20 RCAs to resolve &gt;50% of plant risk exposure immediately. Figures are the supplied executive prioritization inputs.</p>
+          </article>
+
+          <div id="availability-comparison" class="comparison" aria-live="polite"></div>
+
+          <div class="grid two-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <div><h3>Failure mechanism mix</h3><p>Computed from Incident Database · F Mechanism.</p></div>
+                <span class="panel-kicker" id="incident-count">—</span>
+              </div>
+              <div class="grid two-grid" style="align-items:center">
+                <div class="chart-wrap short"><canvas id="failure-chart" aria-label="Failure mechanism distribution"></canvas></div>
+                <ul id="failure-list" class="compact-list"></ul>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div><h3>Expected motor load</h3><p>Hourly RUN_STATUS=ON observations; this is a forecast, not an energy-savings claim.</p></div>
+                <div class="inline-control"><label for="energy-asset">Asset</label><select id="energy-asset" aria-label="Energy forecast asset"></select></div>
+              </div>
+              <div class="chart-wrap short"><canvas id="energy-chart" aria-label="Expected and observed motor load"></canvas></div>
+              <div id="energy-detail" class="chart-note"></div>
+            </article>
+          </div>
+        </div>
+
+        <div id="exec-kill-list" class="subview">
+          <div class="page-heading">
+            <div><div class="eyebrow">Dashboard rationalization</div><h2>Kill-list &amp; KPI Constitution</h2><p>Usage means source-data coverage: this baseline has no page-click telemetry, so interaction use is not invented.</p></div>
+          </div>
+          <div id="rationalization-summary" class="grid three-grid rational-summary"></div>
+          <p class="note" style="margin:-5px 0 14px">Audit totals are presentation-brief inputs, not counts reconstructed from the Case 2 workbooks.</p>
+          <article class="panel">
+            <div class="panel-heading"><div><h3>Rationalization matrix</h3><p>Keep decision-driving information; retire untraceable or redundant claims.</p></div></div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Dashboard element</th><th>Usage / coverage</th><th>Redundancy</th><th>Actionability</th><th>Decision</th></tr></thead>
+              <tbody id="kill-list-body"></tbody>
+            </table></div>
+            <p class="note" style="margin-bottom:0">No clickstream or human feedback history is in the provided baseline. Coverage counts are sourced-data coverage, not user engagement.</p>
+          </article>
+          <article class="panel" style="margin-top:14px">
+            <div class="panel-heading"><div><h3>KPI Constitution Reconciliation</h3><p>Keep equipment direct/estimated loss distinct from Incident Database total loss (actual + potential).</p></div></div>
+            <div id="ko-loss-explainer" class="comparison reconciliation-callout"></div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Tag</th><th>Equipment Performance loss</th><th>Incident DB actual</th><th>Incident DB potential</th><th>Incident DB total</th><th>Total − Equipment</th><th>Link status</th></tr></thead>
+              <tbody id="executive-reconciliation-body"></tbody>
+            </table></div>
+          </article>
+          <article class="panel" style="margin-top:14px">
+            <div class="panel-heading"><div><h3>KPI Constitution</h3><p>One definition, one accountable owner role, and a traceable lineage for each metric.</p></div></div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>KPI</th><th>Definition</th><th>Single owner</th><th>Lineage</th></tr></thead>
+              <tbody id="constitution-body"></tbody>
+            </table></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="tab-problem-tank" class="tab-panel" aria-labelledby="nav-problem-tank">
+        <div class="page-heading">
+          <div><div class="eyebrow">Triage by cost of delay</div><h2>Problem Tank</h2><p>Ranked at the selected replay week. The 7-day response SLA starts at confirmed drift and counts against that week’s source date.</p></div>
+          <span class="pill" id="tank-week">Replay week —</span>
+        </div>
+        <article class="panel">
+          <div class="table-wrap"><table>
+            <thead><tr><th>Tag</th><th>Drift σ</th><th>RUL ± band</th><th>Cost / day</th><th>Owner (PIC)</th><th>SLA left</th><th>Status</th></tr></thead>
+            <tbody id="problem-table-body"></tbody>
+          </table></div>
+          <div class="source-legend"><span>Cost / day = Exposure_now / configured risk horizon.</span><span>Missing inputs stay unestimated; no values are substituted.</span></div>
+        </article>
+      </section>
+
+      <section id="tab-replay" class="tab-panel" aria-labelledby="nav-replay">
+        <div class="page-heading">
+          <div><div class="eyebrow">No look-ahead in the weekly forecast</div><h2>Condition replay</h2><p>Move the slider for an asset. Markers show the retrospective drift, official alarm, and trip weeks; the cockpit panel uses only readings available by the selected week.</p></div>
+        </div>
+        <article class="panel">
+          <div class="replay-controls">
+            <div class="inline-control"><label for="replay-asset">Asset</label><select id="replay-asset" aria-label="Replay asset"></select></div>
+            <div class="slider-shell">
+              <div class="slider-readout"><span class="control-label">Condition week</span><strong id="replay-week-label">—</strong></div>
+              <div class="replay-presets" role="group" aria-label="Replay presets">
+                <button class="preset-button inline-flex items-center justify-center rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold" type="button" data-preset-week="1">W1: Baseline Normal</button>
+                <button class="preset-button inline-flex items-center justify-center rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold" type="button" data-preset-week="8">W8: Early 3σ Drift Flag</button>
+                <button class="preset-button inline-flex items-center justify-center rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold" type="button" data-preset-week="15">W15: Official DCS Alarm</button>
+                <button class="preset-button inline-flex items-center justify-center rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold" type="button" data-preset-week="21">W21: Historic Trip Event</button>
+              </div>
+              <div class="slider-line">
+                <div id="marker-layer" class="marker-layer" aria-hidden="true"></div>
+                <input id="week-slider" type="range" min="1" max="1" step="1" value="1" aria-label="Replay condition week">
+              </div>
+              <div class="range-bounds"><span id="week-min">—</span><span id="week-max">—</span></div>
+              <div class="marker-legend">
+                <span><i class="legend-dot"></i>Our drift flag</span>
+                <span><i class="legend-dot alarm"></i>Official ALARM</span>
+                <span><i class="legend-dot trip"></i>TRIP</span>
+              </div>
+            </div>
+          </div>
+          <div class="replay-grid">
+            <div class="panel" style="padding:14px">
+              <div class="panel-heading"><div><h3 id="trend-title">Primary signal</h3><p>Observed series and equipment trip threshold from the source workbook.</p></div></div>
+              <div class="chart-wrap"><canvas id="replay-chart" aria-label="Weekly condition trend"></canvas></div>
+            </div>
+            <aside id="cockpit-said" class="cockpit-card" aria-live="polite"></aside>
+          </div>
+          <div id="replay-data-note" class="chart-note"></div>
+        </article>
+      </section>
+
+      <section id="tab-root-cause" class="tab-panel" aria-labelledby="nav-root-cause">
+        <div class="page-heading">
+          <div><div class="eyebrow">Human review · evidence before dispatch</div><h2>Root Cause &amp; Actions</h2><p>Hypotheses are ranked incident matches, not automated diagnoses. Confirm or reject them before preparing a work order.</p></div>
+          <div class="inline-control"><label for="root-asset">Asset</label><select id="root-asset" aria-label="Root cause asset"></select></div>
+        </div>
+        <div id="rca-meta-strip" class="rca-meta-strip" aria-label="RCA report metadata"></div>
+        <p id="candidate-review-note" class="review-weight-note" hidden></p>
+        <div id="hypothesis-grid" class="hypothesis-grid"></div>
+        <article class="panel" style="margin-top:14px">
+          <div class="panel-heading"><div><h3>Similar incidents</h3><p>Cosine similarity over Risk Case Title, Component, and F Mechanism, with the asset RCA deck in the retrieval corpus.</p></div></div>
+          <div class="table-wrap"><table class="similar-table">
+            <thead><tr><th>Match</th><th>Serial no.</th><th>Tag</th><th>Risk case</th><th>Component / mechanism</th><th>Loss</th><th>Status</th></tr></thead>
+            <tbody id="similar-table-body"></tbody>
+          </table></div>
+        </article>
+        <article class="panel" style="margin-top:14px">
+          <div class="panel-heading"><div><h3>Corrective &amp; proactive actions</h3><p>CAPA audit actions supplied with the five RCA decks. Status and PIC are shown as recorded; this table is not a live CMMS connection.</p></div><span id="capa-asset-status" class="panel-kicker"></span></div>
+          <div class="table-wrap"><table class="capa-table">
+            <thead><tr><th>Action</th><th>CAPA action</th><th>Status</th><th>PIC</th><th>Category</th></tr></thead>
+            <tbody id="capa-actions-body"></tbody>
+          </table></div>
+        </article>
+        <div class="action-grid">
+          <article class="action-box">
+            <h3>Work order dispatch</h3>
+            <p id="dispatch-note">At alert weeks, open a demo action contract for human review. No live CMMS or SAP PM write-back is connected.</p>
+            <button id="dispatch-button" class="button primary" type="button">Dispatch Work Order</button>
+            <div id="dispatch-state" class="note" aria-live="polite" style="margin-top:9px"></div>
+          </article>
+          <article class="action-box">
+            <h3>Post-repair sign-off</h3>
+            <div id="signoff-status" class="note"></div>
+            <div id="postrepair-readings" class="postrepair-list"></div>
+            <button id="signoff-button" class="button confirm-button" type="button" disabled>Sign-off resolution</button>
+            <div id="signoff-state" class="note" aria-live="polite" style="margin-top:8px"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>CAP-LOOP · read-only batch analytics · every displayed value carries its source on hover.</span>
+      <span id="data-origin">Waiting for data</span>
+    </footer>
+  </div>
+
+  <dialog id="dispatch-modal" class="dispatch-modal" aria-labelledby="dispatch-modal-title">
+    <div class="dispatch-modal-inner rounded-2xl bg-slate-900 p-6">
+      <div class="dispatch-modal-head">
+        <div><div class="eyebrow">CMMS / SAP PM Action Contract Dispatcher</div><h2 id="dispatch-modal-title">Review work order contract</h2><p>Demo-only authorization preview. Confirm the target, work scope, and SLA before dispatch.</p></div>
+        <button id="dispatch-modal-close" class="modal-close" type="button" aria-label="Close dispatcher">×</button>
+      </div>
+      <dl class="contract-grid">
+        <div class="contract-field"><dt>Work Order ID</dt><dd id="contract-work-order">—</dd></div>
+        <div class="contract-field"><dt>Target Tag</dt><dd id="contract-target">—</dd></div>
+        <div class="contract-field"><dt>Assigned Lead</dt><dd id="contract-lead">—</dd></div>
+        <div class="contract-field"><dt>SLA Countdown</dt><dd id="contract-sla">—</dd></div>
+        <div class="contract-field wide"><dt>Mandated SOP / Work Scope</dt><dd id="contract-sop">—</dd></div>
+      </dl>
+      <div class="contract-warning">Demo interaction only: authorization is stored in this browser as <strong>DISPATCHED / ACTIVE SLA</strong>. No SAP PM, CMMS, DCS, or plant system is contacted.</div>
+      <div class="dispatch-modal-actions">
+        <button id="dispatch-modal-cancel" class="button" type="button">Cancel</button>
+        <button id="authorize-dispatch" class="button primary" type="button">Authorize Dispatch</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="visual-modal" class="visual-modal" aria-labelledby="visual-modal-title">
+    <div class="visual-modal-inner">
+      <div class="dispatch-modal-head">
+        <div><div class="eyebrow">Candidate visual evidence</div><h2 id="visual-modal-title">Visual evidence</h2><p>Source-linked inspection media or selected-week telemetry diagram.</p></div>
+        <button id="visual-modal-close" class="modal-close" type="button" aria-label="Close visual evidence">×</button>
+      </div>
+      <div id="visual-modal-content" class="visual-modal-content"></div>
+      <div id="visual-modal-source" class="visual-modal-source"></div>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+      const charts = {};
+      const stateKey = "cap-loop-case2-human-feedback";
+      let data = null;
+      let tags = [];
+      let currentAsset = null;
+      let selectedWeek = 16;
+      let energyAsset = null;
+      let pendingDispatch = null;
+      let feedback = readFeedback();
+      let signoffEligibility = null;
+
+      const byId = (id) => document.getElementById(id);
+      const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[char]));
+      const sourceTitle = (source, definition = "") => `Source: ${source}${definition ? ` · ${definition}` : ""}`;
+      const isNumericValue = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+
+      function setSourceTooltip(id, source, rule) {
+        const element = byId(id);
+        if (element) element.title = sourceTitle(source, rule);
+      }
+
+      function sourceFor(kind, tag = null) {
+        if (!data) return "Source file/sheet unavailable until dashboard data loads.";
+        const files = data.sources || {};
+        if (kind === "condition") return `${files.equipment_performance_files?.[tag] || "Equipment Performance workbook"} / Condition History`;
+        if (kind === "limits") return `${files.equipment_performance_files?.[tag] || "Equipment Performance workbook"} / Equipment Info`;
+        if (kind === "performance") return `${files.equipment_performance_files?.[tag] || "Equipment Performance workbook"} / Performance Summary`;
+        if (kind === "production") return `${files.production_data_files?.[tag] || "Production Data workbook"} / Sheet2`;
+        if (kind === "rca") return `${files.rca_powerpoints?.[tag] || "RCA PowerPoint"} / slide text`;
+        if (kind === "incident") return `${files.incident_database || "Incident Database.xlsx"} / Incident Database`;
+        if (kind === "incident+condition") return `${files.incident_database || "Incident Database.xlsx"} / Incident Database; ${files.equipment_performance_files?.[tag] || "Equipment Performance workbook"} / Condition History`;
+        if (kind === "derived-risk") return `Derived from ${files.equipment_performance_files?.[tag] || "Equipment Performance workbook"} / Condition History + Equipment Info; ${files.incident_database || "Incident Database.xlsx"} / Incident Database / Total Loss; dashboard_data.json / configuration (risk horizon)`;
+        if (kind === "all-derived-risk") return `Derived from ${tags.map((asset) => `${files.equipment_performance_files?.[asset] || "Equipment Performance workbook"} / Condition History + Equipment Info`).join("; ")}; ${files.incident_database || "Incident Database.xlsx"} / Incident Database / Total Loss; dashboard_data.json / configuration (risk horizon)`;
+        if (kind === "retrieval") return `Derived from ${files.incident_database || "Incident Database.xlsx"} / Incident Database; ${files.rca_powerpoints?.[tag] || "RCA PowerPoint"} / slide text; dashboard_data.json / hypotheses and similar_incidents`;
+        if (kind === "all-performance") return tags.map((asset) => `${files.equipment_performance_files?.[asset] || "Equipment Performance workbook"} / Performance Summary`).join("; ");
+        if (kind === "all-condition") return tags.map((asset) => `${files.equipment_performance_files?.[asset] || "Equipment Performance workbook"} / Condition History`).join("; ");
+        if (kind === "mix") return `${files.incident_database || "Incident Database.xlsx"} / Incident Database · F Mechanism`;
+        return "Source lineage is defined in dashboard_data.json / sources and configuration.";
+      }
+
+      function sourcedText(value, source, definition = "") {
+        return `<span class="source-text" title="${escapeHtml(sourceTitle(source, definition))}">${escapeHtml(value)}</span>`;
+      }
+
+      function number(value, source, options = {}) {
+        const n = Number(value);
+        if (value === null || value === undefined || value === "" || !Number.isFinite(n)) {
+          return `<span class="muted" title="${escapeHtml(sourceTitle(source, options.definition || "value unavailable in source data"))}">—</span>`;
+        }
+        const decimals = options.decimals ?? 1;
+        let text;
+        if (options.currency) {
+          const formatted = new Intl.NumberFormat("en-US", {
+            notation: options.compact ? "compact" : "standard",
+            maximumFractionDigits: options.decimals ?? (options.compact ? 2 : 0),
+            minimumFractionDigits: options.minDecimals ?? 0
+          }).format(Math.abs(n));
+          text = `${n < 0 ? "−" : ""}US$${formatted}`;
+        } else {
+          text = numberFormatter.format(Number(n.toFixed(decimals)));
+          if (options.prefix) text = `${options.prefix}${text}`;
+          if (options.suffix) text = `${text}${options.suffix}`;
+        }
+        return `<span class="source-number" title="${escapeHtml(sourceTitle(source, options.definition || "measured or derived value"))}">${escapeHtml(text)}</span>`;
+      }
+
+      function dateText(value, source) {
+        if (!value) return `<span class="muted" title="${escapeHtml(sourceTitle(source, "date unavailable"))}">—</span>`;
+        return sourcedText(value, source, "reported date");
+      }
+
+      function money(value, source, compact = false) {
+        return number(value, source, { currency: true, compact, decimals: compact ? 2 : 0 });
+      }
+
+      function shortTag(tag) {
+        return sourcedText(tag, sourceFor("condition", tag), "Equipment Tag");
+      }
+
+      function latestRow(tag, week = null) {
+        const rows = data?.assets?.[tag] || [];
+        if (week === null || week === undefined) return rows[rows.length - 1] || null;
+        return [...rows].reverse().find((row) => Number(row.week) <= Number(week)) || null;
+      }
+
+      function backtestFor(tag) {
+        return (data?.backtest || []).find((row) => row.tag === tag) || {};
+      }
+
+      function metadataFor(tag) {
+        return data?.asset_metadata?.[tag] || {};
+      }
+
+      function consequenceFor(tag) {
+        return data?.consequences?.[tag] || {};
+      }
+
+      function currentStatusClass(status) {
+        const value = String(status || "").toLowerCase();
+        if (value.includes("trip")) return "trip";
+        if (value.includes("alarm")) return "alarm";
+        if (value.includes("normal")) return "normal";
+        return "";
+      }
+
+      function statusChip(status, tag) {
+        const value = status || "Not recorded";
+        return `<span class="status-chip ${currentStatusClass(value)}" title="${escapeHtml(sourceTitle(sourceFor("condition", tag), "Health Status"))}">${escapeHtml(value)}</span>`;
+      }
+
+      function readFeedback() {
+        try { return JSON.parse(localStorage.getItem(stateKey) || "{}"); }
+        catch (_) { return {}; }
+      }
+
+      function saveFeedback() {
+        try { localStorage.setItem(stateKey, JSON.stringify(feedback)); }
+        catch (_) { /* Browser privacy mode: keep feedback for this page session. */ }
+      }
+
+      function showLoadError(message) {
+        const box = byId("load-error");
+        box.textContent = message;
+        box.classList.add("visible");
+      }
+
+      function loadEmbeddedSnapshot() {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "./dashboard_data_embedded.js";
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("The embedded snapshot dashboard_data_embedded.js is missing or could not be loaded. Run pipeline.py to generate it in the project root beside index.html."));
+          document.head.appendChild(script);
+        });
+      }
+
+      function fillAssetSelect(select, selected) {
+        select.innerHTML = tags.map((tag) => `<option value="${escapeHtml(tag)}" title="${escapeHtml(sourceTitle(sourceFor("condition", tag), "Equipment Tag"))}">${escapeHtml(tag)}</option>`).join("");
+        if (selected && tags.includes(selected)) select.value = selected;
+      }
+
+      function renderExecutive() {
+        const summary = data.summary || {};
+        const incidentSource = sourceFor("incident");
+        const derivedRiskSource = sourceFor("all-derived-risk");
+        setSourceTooltip("backlog-info", incidentSource, "Unclosed-Loss Backlog = sum Total Loss (k US$) × 1,000 for NEW REGISTERED / RCA PROCESS rows with RCA Due Date < as-of date.");
+        setSourceTooltip("overdue-info", incidentSource, "Overdue RCA count = count of NEW REGISTERED / RCA PROCESS rows with RCA Due Date < as-of date.");
+        setSourceTooltip("risk-info", derivedRiskSource, "Forward Risk Exposure = sum of 30-day event probability × Incident Database Total Loss consequence for active alerts; probability = 1 − exp(−30 / RUL_days). Total Loss already includes actual and potential loss.");
+        byId("backlog-value").innerHTML = money(summary.unclosed_loss_backlog, incidentSource, true);
+        byId("backlog-foot").innerHTML = `Historical loss on overdue open RCAs · as of ${dateText(summary.as_of, incidentSource)}.`;
+        const replayWeek = selectedWeek ?? data.replay?.current_week;
+        byId("risk-value").innerHTML = money(computeForwardRisk(replayWeek), derivedRiskSource, true);
+        byId("risk-foot").innerHTML = `Active-alert exposure at replay week ${number(replayWeek, sourceFor("all-condition"), { decimals: 0, definition: "selected replay cursor" })} · incident as of ${dateText(summary.as_of, incidentSource)}; backlog remains separate.`;
+        byId("overdue-value").innerHTML = number(summary.overdue_rcas, incidentSource, { decimals: 0, definition: "open RCA statuses past due" });
+        byId("overdue-foot").innerHTML = `Average overdue ${number(summary.avg_overdue_days, incidentSource, { decimals: 0, suffix: " days", definition: "as-of date minus RCA Due Date" })} · as of ${dateText(summary.as_of, incidentSource)}.`;
+
+        const energyTags = Object.keys(data.energy || {});
+        if (!energyAsset || !energyTags.includes(energyAsset)) energyAsset = energyTags[0] || null;
+        const energySelect = byId("energy-asset");
+        energySelect.innerHTML = energyTags.map((tag) => `<option value="${escapeHtml(tag)}">${escapeHtml(tag)}</option>`).join("");
+        if (energyAsset) energySelect.value = energyAsset;
+        renderEnergy();
+
+        const metadata = tags.map(metadataFor);
+        const availability = metadata.map((item) => item.availability_percent).filter(isNumericValue).map(Number);
+        const epLoss = (data.kpi_reconciliation || []).map((item) => item.equipment_performance_loss_usd).filter(isNumericValue).map(Number);
+        const comparisonSource = sourceFor("all-performance");
+        const minAvailability = availability.length ? Math.min(...availability) : null;
+        const maxAvailability = availability.length ? Math.max(...availability) : null;
+        const totalLoss = epLoss.reduce((total, item) => total + item, 0);
+        byId("availability-comparison").innerHTML = availability.length && epLoss.length
+          ? `<strong>Availability looks green</strong> (${number(minAvailability, comparisonSource, { decimals: 1, suffix: "%", definition: "minimum asset Availability (%)" })}–${number(maxAvailability, comparisonSource, { decimals: 1, suffix: "%", definition: "maximum asset Availability (%)" })}) while linked Equipment Performance loss is ${money(totalLoss, comparisonSource, true)}.`
+          : `Availability/loss comparison unavailable: source values are missing; no figures are imputed.`;
+
+        renderFailureModes();
+        renderCapaSummary();
+        renderKillList();
+        renderRationalizationSummary();
+        renderExecutiveReconciliation();
+        renderConstitution();
+      }
+
+      function renderFailureModes() {
+        const mix = data.failure_mode_mix || [];
+        const total = mix.reduce((sum, item) => sum + Number(item.count || 0), 0);
+        byId("incident-count").innerHTML = `${number(total, sourceFor("mix"), { decimals: 0, definition: "classified incident count" })} incidents`;
+        byId("failure-list").innerHTML = mix.slice(0, 6).map((item) => `<li><span>${sourcedText(item.failure_mode, sourceFor("mix"), "F Mechanism")}</span><span>${number(item.share_percent, sourceFor("mix"), { decimals: 1, suffix: "%", definition: "mechanism count divided by classified incidents" })}</span></li>`).join("") || `<li class="muted">No failure mechanisms in source data.</li>`;
+        if (!window.Chart) return;
+        const top = mix.slice(0, 6);
+        const remainder = mix.slice(6).reduce((sum, item) => sum + Number(item.count || 0), 0);
+        const labels = top.map((item) => item.failure_mode);
+        const values = top.map((item) => Number(item.count || 0));
+        if (remainder) { labels.push("Other source mechanisms"); values.push(remainder); }
+        replaceChart("failure", "failure-chart", {
+          type: "doughnut",
+          data: { labels, datasets: [{ data: values, backgroundColor: ["#55d6be", "#5da9ff", "#f2bd58", "#c18aff", "#ff737b", "#79c5dc", "#61748a"], borderColor: "#101c2b", borderWidth: 3 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false, cutout: "68%",
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: (item) => `${item.label}: ${number(item.raw, sourceFor("mix"), { decimals: 0, definition: "incident count" }).replace(/<[^>]*>/g, "")} · ${sourceFor("mix")}` } }
+            }
+          }
+        });
+      }
+
+      function renderEnergy() {
+        if (!data || !energyAsset) {
+          byId("energy-value").textContent = "Not available";
+          byId("energy-foot").textContent = "No energy module in dashboard data.";
+          setSourceTooltip("energy-info", "No Production Data workbook selected.", "Energy value unavailable because the dashboard contains no asset energy series.");
+          return;
+        }
+        const energy = data.energy[energyAsset];
+        const forecast = energy?.expected_load_forecast || {};
+        const source = sourceFor("production", energyAsset);
+        setSourceTooltip("energy-info", source, "Filter Sheet2 to RUN_STATUS=ON rows with numeric AMP and PLANT_RATE; fit OLS AMP ~ PLANT_RATE and evaluate at the latest observed plant rate. This is motor current, not kWh or energy cost.");
+        byId("energy-value").innerHTML = `${number(forecast.expected_amp, source, { decimals: 1, suffix: " A", definition: "OLS expected motor load at the latest observed plant rate" })}`;
+        const flag = forecast.deviation_flag;
+        const flagLabel = flag === true ? `<span class="danger">Deviation flag</span>` : flag === false ? `<span class="positive">Within model band</span>` : `<span class="muted">Flag unavailable</span>`;
+        byId("energy-foot").innerHTML = `${sourcedText(energyAsset, source, "Equipment Tag")} · expected at ${number(forecast.plant_rate, source, { decimals: 1, suffix: " TPH", definition: "latest RUN_STATUS=ON plant rate" })} · ${flagLabel}.`;
+        const price = energy.energy_price_usd_per_kwh_assumption;
+        const proxyCostNote = price == null ? "No configured $/kWh assumption." : `Configured price ${number(price, "Runtime configuration / --energy-price-per-kwh or ENERGY_PRICE_PER_KWH (not a workbook field)", { currency: true, decimals: 4, minDecimals: 2, definition: "editable price assumption" })} per kWh; no kWh value exists in the source.`;
+        byId("energy-detail").innerHTML = `${number(energy.running_observations, source, { decimals: 0, definition: "hourly rows filtered to RUN_STATUS=ON with numeric AMP and PLANT_RATE" })} RUN_STATUS=ON observations · proxy mean ${number(energy.proxy_mean, source, { decimals: 3, definition: "AMP / PLANT_RATE" })} · ${proxyCostNote} Cost is not estimated because the source has no kWh, voltage, or power factor.`;
+        renderEnergyChart(energyAsset);
+      }
+
+      function computeForwardRisk(week) {
+        // Dynamically sum exposure_now_usd across all assets at the given replay week.
+        // Returns the total USD exposure or null if no estimates are available.
+        if (!data || !tags.length) return null;
+        let total = 0;
+        let hasValue = false;
+        for (const tag of tags) {
+          const rows = data.assets?.[tag] || [];
+          // Find the latest row at or before this week that has an exposure value.
+          const row = [...rows].reverse().find((r) => Number(r.week) <= Number(week));
+          const tripWeek = backtestFor(tag).trip_week;
+          // Only count pre-trip alert rows (mirrors pipeline logic).
+          const isPreTrip = !isNumericValue(tripWeek) || Number(week) < Number(tripWeek);
+          if (row && isPreTrip && isNumericValue(row.exposure_now_usd)) {
+            total += Number(row.exposure_now_usd);
+            hasValue = true;
+          }
+        }
+        return hasValue ? total : 0;
+      }
+
+      function updateForwardRiskTile(week) {
+        const derivedRiskSource = sourceFor("all-derived-risk");
+        const exposure = computeForwardRisk(week);
+        byId("risk-value").innerHTML = money(exposure, derivedRiskSource, true);
+        byId("risk-foot").innerHTML = `Active-alert exposure at replay week ${number(week, sourceFor("all-condition"), { decimals: 0, definition: "current replay cursor" })} · incident as of ${dateText(data.summary?.as_of, sourceFor("incident"))}; backlog remains separate.`;
+        byId("replay-badge").innerHTML = `Replay ${number(week, sourceFor("all-condition"), { decimals: 0, prefix: "W" })}`;
+      }
+
+      function renderCapaSummary() {
+        const summary = data.capa_audit?.summary || {};
+        const total = Number(summary.total || 0);
+        const closed = Number(summary.closed || 0);
+        const rate = isNumericValue(summary.loop_closure_rate_percent)
+          ? Number(summary.loop_closure_rate_percent)
+          : (total ? closed / total * 100 : null);
+        const source = "dashboard_data.json / capa_audit · RCA deck CAPA audit actions";
+        byId("capa-resolution-rate").innerHTML = `${number(rate, source, { decimals: 1, suffix: "%", definition: "closed CAPA actions divided by total actions" })} Closed (${number(closed, source, { decimals: 0 })} of ${number(total, source, { decimals: 0 })} Actions)`;
+        byId("capa-resolution-subtitle").innerHTML = `${number(summary.open, source, { decimals: 0 })} Open, ${number(summary.in_progress, source, { decimals: 0 })} In Progress across ${number(new Set((data.capa_audit?.actions || []).map((action) => action.tag)).size, source, { decimals: 0 })} RCA assets — Direct evidence of the Inaction Gap.`;
+      }
+
+      function renderEnergyChart(tag) {
+        const energy = data.energy?.[tag];
+        if (!energy || !window.Chart) return;
+        const points = energy.hourly || [];
+        const stride = Math.max(1, Math.ceil(points.length / 90));
+        const sampled = points.filter((_, index) => index % stride === 0 || index === points.length - 1);
+        const source = sourceFor("production", tag);
+        replaceChart("energy", "energy-chart", {
+          type: "line",
+          data: {
+            labels: sampled.map((row) => row.timestamp),
+            datasets: [
+              { label: "Observed AMP", data: sampled.map((row) => row.amp), borderColor: "#5da9ff", backgroundColor: "#5da9ff22", pointRadius: 0, borderWidth: 1.5, tension: .18 },
+              { label: "Expected AMP", data: sampled.map((row) => row.expected_amp), borderColor: "#55d6be", pointRadius: 0, borderWidth: 1.5, borderDash: [5, 4], tension: .18 }
+            ]
+          },
+          options: chartOptions(source, "Motor current (A)")
+        });
+      }
+
+      function renderKillList() {
+        const matrix = byId("kill-list-body");
+        const availabilityCount = tags.filter((tag) => isNumericValue(metadataFor(tag).availability_percent)).length;
+        const reconciliationCount = (data.kpi_reconciliation || []).filter((item) => isNumericValue(item.equipment_performance_loss_usd) && isNumericValue(item.incident_db_total_loss_usd)).length;
+        const incidentCount = (data.failure_mode_mix || []).reduce((sum, item) => sum + (isNumericValue(item.count) ? Number(item.count) : 0), 0);
+        const onHours = Object.values(data.energy || {}).reduce((sum, item) => sum + (isNumericValue(item.running_observations) ? Number(item.running_observations) : 0), 0);
+        const activeCount = (data.actions || []).length;
+        const epSource = sourceFor("all-performance");
+        const conditionSource = sourceFor("all-condition");
+        const incidentSource = sourceFor("mix");
+        const energySource = tags.map((tag) => sourceFor("production", tag)).join("; ");
+        const rows = [
+          ["Availability-only headline", `${number(availabilityCount, epSource, { decimals: 0 })} / ${number(tags.length, epSource, { decimals: 0 })} assets covered`, "Can look green while loss is material", "Context only; not an alert trigger", "Keep only beside loss and action metrics"],
+          ["Loss reconciliation", `${number(reconciliationCount, sourceFor("incident+condition", tags[0]), { decimals: 0 })} / ${number(tags.length, epSource, { decimals: 0 })} linked assets matched`, "Low; actual and potential loss remain distinct", "High; exposes cross-system KPI variance", "Keep"],
+          ["Failure mechanism mix", `${number(incidentCount, incidentSource, { decimals: 0 })} classified incidents`, "Medium; shares text fields with retrieval", "Context for prioritization; not dispatch alone", "Keep compact; remove duplicate static legends"],
+          ["Hourly load proxy", `${number(onHours, energySource, { decimals: 0 })} RUN_STATUS=ON rows`, "Not a kWh meter or energy-loss KPI", "Forecast/deviation only", "Keep forecast; kill unmeasured energy-waste claims"],
+          ["Weekly drift + RUL", `${number(tags.length, conditionSource, { decimals: 0 })} asset series`, "Low; preserves asset-specific trends", `${number(activeCount, conditionSource, { decimals: 0 })} active actions at current replay cursor`, "Keep; link directly to owner and work package"]
+        ];
+        matrix.innerHTML = rows.map((row) => `<tr>${row.map((cell, index) => `<td>${index === 0 ? `<strong>${escapeHtml(cell)}</strong>` : cell}</td>`).join("")}</tr>`).join("");
+      }
+
+      function renderConstitution() {
+        const cfg = data.configuration || {};
+        const owner = "Reliability Lead (role; named person is not in baseline)";
+        const riskConfigSource = `${sourceFor("derived-risk", tags[0])}; dashboard_data.json / configuration`;
+        const conditionConfigSource = `${sourceFor("condition", tags[0])}; dashboard_data.json / configuration`;
+        const rows = [
+          ["Unclosed-Loss Backlog", `Sum Incident Database Total Loss for open RCA statuses past due at as-of date ${dateText(data.summary?.as_of, sourceFor("incident"))}.`, owner, sourceFor("incident")],
+          ["Forward Risk Exposure", `Sum p × consequence over active alerts; horizon ${number(cfg.risk_horizon_days, riskConfigSource, { decimals: 0, suffix: " days" })}.`, owner, sourceFor("derived-risk", tags[0])],
+          ["Early Drift", `Any same parameter with |z| ≥ ${number(cfg.drift_z_threshold, conditionConfigSource, { decimals: 0 })} for ${number(cfg.drift_consecutive_weeks, conditionConfigSource, { decimals: 0 })} consecutive weekly readings.`, owner, sourceFor("condition", tags[0])],
+          ["RUL", `OLS on the last ${number(cfg.rul_window_weeks, conditionConfigSource, { decimals: 0 })} pre-trip primary-signal readings to the Equipment Info trip limit; the trip reading is excluded.`, owner, `${sourceFor("condition", tags[0])}; ${sourceFor("limits", tags[0])}`],
+          ["Energy load forecast", "Fit AMP ~ PLANT_RATE using RUN_STATUS=ON hourly rows; report forecast and deviation, not unmetered kWh savings.", owner, sourceFor("production", tags[0])],
+          ["Post-repair sign-off", `Primary-signal robust z-score ≤ +${number(cfg.signoff_z_threshold, conditionConfigSource, { decimals: 1, suffix: "σ" })} for ${number(cfg.signoff_consecutive_weekly_readings, conditionConfigSource, { decimals: 0 })} consecutive NORMAL post-repair readings; negative z-scores are healthy.`, owner, `${sourceFor("condition", tags[0])}; robust baseline in dashboard_data.json / baselines`]
+        ];
+        byId("constitution-body").innerHTML = rows.map((row) => `<tr><td><strong>${row[0]}</strong></td><td>${row[1]}</td><td>${sourcedText(row[2], "KPI Constitution / accountable owner role")}</td><td>${sourcedText(row[3], row[3], "source lineage")}</td></tr>`).join("");
+      }
+
+      function renderRationalizationSummary() {
+        const source = "Presentation brief / user-provided audit summary (not a Case 2 workbook field)";
+        const stages = [
+          { count: 64, label: "Dashboards audited", tone: "#5da9ff" },
+          { count: 38, label: "Retired · kill-list", tone: "#f2bd58" },
+          { count: 26, label: "Unified dashboards", tone: "#55d6be" }
+        ];
+        byId("rationalization-summary").innerHTML = stages.map((stage, index) => `
+          <article class="panel rational-step" style="border-top:2px solid ${stage.tone}">
+            <span>${escapeHtml(stage.label)}</span>
+            <strong>${number(stage.count, source, { decimals: 0, definition: "presentation-supplied dashboard rationalization count" })}</strong>
+            ${index < stages.length - 1 ? `<span class="muted">${index === 0 ? "audited → retired" : "retired → unified"}</span>` : `<span class="muted">remaining portfolio</span>`}
+          </article>`).join("");
+      }
+
+      function renderExecutiveReconciliation() {
+        const rows = data.kpi_reconciliation || [];
+        const table = byId("executive-reconciliation-body");
+        const kUsd = (value, source, definition) => number(
+          isNumericValue(value) ? Number(value) / 1000 : null,
+          source,
+          { decimals: 1, prefix: "US$", suffix: "k", definition }
+        );
+        table.innerHTML = rows.map((item) => {
+          const equipmentSource = sourceFor("performance", item.tag);
+          const incidentSource = sourceFor("incident");
+          const link = `${item.reconciliation_status || "Not reconciled"}${item.matched_ar_no ? ` · AR ${item.matched_ar_no}` : ""}`;
+          return `<tr>
+            <td>${sourcedText(item.tag, equipmentSource, "Equipment Tag")}</td>
+            <td>${kUsd(item.equipment_performance_loss_usd, equipmentSource, "Performance Summary / Estimated Loss (k USD)")}</td>
+            <td>${kUsd(item.incident_db_actual_loss_usd, incidentSource, "Incident Database / Act. Loss (k US$)")}</td>
+            <td>${kUsd(item.incident_db_potential_loss_usd, incidentSource, "Incident Database / Pot. Loss (k US$)")}</td>
+            <td>${kUsd(item.incident_db_total_loss_usd, incidentSource, "Incident Database / Total Loss (k US$) = Actual + Potential")}</td>
+            <td>${kUsd(item.variance_incident_total_minus_equipment_usd, `${equipmentSource}; ${incidentSource}`, "Incident DB Total Loss minus Equipment Performance Estimated Loss")}</td>
+            <td>${sourcedText(link, incidentSource, item.reconciliation_status || "Link status")}</td>
+          </tr>`;
+        }).join("") || `<tr><td class="table-empty" colspan="7">No reconciliation rows are present in dashboard data.</td></tr>`;
+
+        const ko = rows.find((item) => item.tag === "KO-3201");
+        const callout = byId("ko-loss-explainer");
+        if (!ko) {
+          callout.textContent = "KO-3201 reconciliation is unavailable in the loaded dashboard data; no values are substituted.";
+          return;
+        }
+        const epSource = sourceFor("performance", "KO-3201");
+        const dbSource = sourceFor("incident");
+        callout.innerHTML = `<strong>KO-3201:</strong> Equipment Performance records ${kUsd(ko.equipment_performance_loss_usd, epSource, "Performance Summary / Estimated Loss (k USD)")} as direct/estimated loss. Incident Database records ${kUsd(ko.incident_db_actual_loss_usd, dbSource, "Act. Loss (k US$)")} actual + ${kUsd(ko.incident_db_potential_loss_usd, dbSource, "Pot. Loss (k US$)")} potential = ${kUsd(ko.incident_db_total_loss_usd, dbSource, "Total Loss (k US$), actual + potential")} total. The ${kUsd(ko.variance_incident_total_minus_equipment_usd, `${epSource}; ${dbSource}`, "Incident DB total minus Equipment Performance loss")} variance is potential loss—not an additional direct loss.`;
+      }
+
+      function slaCountdown(tag, week = selectedWeek) {
+        const confirmedWeek = backtestFor(tag).drift_confirmed_week;
+        if (!isNumericValue(confirmedWeek) || Number(week) < Number(confirmedWeek)) return null;
+        const confirmedRow = (data.assets?.[tag] || []).find((row) => Number(row.week) === Number(confirmedWeek));
+        const replayRow = latestRow(tag, week);
+        if (!confirmedRow?.date || !replayRow?.date) return null;
+        const deadline = new Date(`${confirmedRow.date}T00:00:00Z`);
+        deadline.setUTCDate(deadline.getUTCDate() + 7);
+        const replayDate = new Date(`${replayRow.date}T00:00:00Z`);
+        return {
+          deadline: deadline.toISOString().slice(0, 10),
+          remainingDays: Math.round((deadline - replayDate) / 86400000)
+        };
+      }
+
+      function maxDeviation(record) {
+        if (!record?.z_scores) return null;
+        const candidates = Object.entries(record.z_scores).filter(([, value]) => isNumericValue(value));
+        if (!candidates.length) return null;
+        candidates.sort((a, b) => Math.abs(Number(b[1])) - Math.abs(Number(a[1])));
+        return { parameter: candidates[0][0], value: Number(candidates[0][1]) };
+      }
+
+      function renderProblemTank() {
+        const source = sourceFor("derived-risk", tags[0]);
+        const rows = tags.map((tag) => {
+          const record = latestRow(tag, selectedWeek);
+          const z = maxDeviation(record);
+          const consequence = consequenceFor(tag);
+          const cost = record?.cost_of_delay_per_day_usd;
+          return { tag, record, z, cost: isNumericValue(cost) ? Number(cost) : null, consequence };
+        }).sort((a, b) => (b.cost ?? -Infinity) - (a.cost ?? -Infinity));
+        const table = byId("problem-table-body");
+        if (!rows.length) {
+          table.innerHTML = `<tr><td class="table-empty" colspan="7">No asset series loaded.</td></tr>`;
+          return;
+        }
+        table.innerHTML = rows.map(({ tag, record, z, cost, consequence }) => {
+          const conditionSource = sourceFor("condition", tag);
+          const band = record && record.rul_weeks !== null && record.rul_weeks !== undefined
+            ? `${number(record.rul_weeks, source, { decimals: 1, suffix: " wk", definition: "OLS RUL estimate" })} ± ${number(record.rul_uncertainty_weeks, source, { decimals: 1, suffix: " wk", definition: "one-standard-error RUL band" })}<div class="muted small">${number(record.rul_weeks_low, source, { decimals: 1 })}–${number(record.rul_weeks_high, source, { decimals: 1 })} wk range</div>`
+            : `<span class="muted" title="${escapeHtml(sourceTitle(conditionSource, "five valid pre-trip readings and positive slope required"))}">Not estimable</span>`;
+          const costCell = cost === null ? `<span class="muted" title="${escapeHtml(sourceTitle(source, "RUL unavailable or no active forecast"))}">—</span>` : money(cost, source, false);
+          const sla = slaCountdown(tag, selectedWeek);
+          const slaSource = `${conditionSource}; dashboard_data.json / backtest.drift_confirmed_week · 7-day SLA`;
+          const slaCell = !sla ? sourcedText("Not started", slaSource, "Confirmed drift date or selected replay date unavailable") : sla.remainingDays < 0
+            ? `<span class="status-chip trip" title="${escapeHtml(sourceTitle(slaSource, `Deadline ${sla.deadline} minus selected replay date`))}">Overdue ${Math.abs(sla.remainingDays)}d</span>`
+            : `<span class="status-chip ${sla.remainingDays <= 2 ? "alarm" : "normal"}" title="${escapeHtml(sourceTitle(slaSource, `7-day deadline ${sla.deadline}; remaining days at selected replay date`))}">${sla.remainingDays}d left</span>`;
+          const owner = consequence.pic_rca ? sourcedText(consequence.pic_rca, sourceFor("incident"), "PIC (RCA)") : sourcedText("No PIC recorded", sourceFor("incident"), "PIC (RCA) missing");
+          return `<tr>
+            <td><button class="tag-button" data-open-root="${escapeHtml(tag)}" title="${escapeHtml(sourceTitle(conditionSource, "Equipment Tag"))}">${escapeHtml(tag)}</button></td>
+            <td>${z ? `${Math.abs(z.value) > 10 ? `<span class="danger" title="${escapeHtml(sourceTitle(conditionSource, `Actual robust z-score ${z.value.toFixed(3)}σ · ${z.parameter}`))}">&gt; 10σ (Extreme)</span>` : number(Math.abs(z.value), conditionSource, { decimals: 1, suffix: "σ", definition: `largest absolute robust z-score · ${z.parameter}` })}<div class="muted small">${sourcedText(z.parameter, conditionSource, "Condition History column")}</div>` : "—"}</td>
+            <td>${band}</td><td>${costCell}<div class="muted small">per day</div></td><td>${owner}</td><td>${slaCell}</td><td>${statusChip(record?.health_status, tag)}</td>
+          </tr>`;
+        }).join("");
+        byId("tank-week").innerHTML = `Replay week ${number(selectedWeek, sourceFor("all-condition"), { decimals: 0 })}`;
+      }
+
+      function renderReplay() {
+        if (!tags.length) return;
+        if (!currentAsset || !tags.includes(currentAsset)) currentAsset = tags[0];
+        const select = byId("replay-asset");
+        fillAssetSelect(select, currentAsset);
+        const available = (data.replay?.available_weeks || tags.flatMap((tag) => (data.assets[tag] || []).map((row) => row.week))).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+        if (!available.length) throw new Error("Dashboard JSON has no source weeks in replay.available_weeks.");
+        const minWeek = available[0];
+        const maxWeek = available[available.length - 1];
+        const slider = byId("week-slider");
+        slider.min = String(minWeek);
+        slider.max = String(maxWeek);
+        if (selectedWeek === null || selectedWeek < minWeek || selectedWeek > maxWeek) selectedWeek = Math.min(Number(data.replay.current_week), maxWeek);
+        slider.value = String(selectedWeek);
+        document.querySelectorAll("[data-preset-week]").forEach((button) => {
+          const active = Number(button.dataset.presetWeek) === Number(selectedWeek);
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", String(active));
+          button.disabled = Number(button.dataset.presetWeek) < minWeek || Number(button.dataset.presetWeek) > maxWeek;
+          button.title = sourceTitle(sourceFor("all-condition"), "Preset jumps the replay cursor; chart and cockpit update using revealed Condition History only.");
+        });
+        byId("week-min").innerHTML = number(minWeek, sourceFor("all-condition"), { decimals: 0, prefix: "W" });
+        byId("week-max").innerHTML = number(maxWeek, sourceFor("all-condition"), { decimals: 0, prefix: "W" });
+        byId("replay-week-label").innerHTML = number(selectedWeek, sourceFor("condition", currentAsset), { decimals: 0, prefix: "Week " });
+        renderMarkers(currentAsset, minWeek, maxWeek);
+        renderCockpitSaid(currentAsset, selectedWeek);
+      }
+
+      function renderMarkers(tag, minWeek, maxWeek) {
+        const backtest = backtestFor(tag);
+        const events = [
+          { name: "Drift", week: backtest.drift_week, className: "drift", source: sourceFor("condition", tag) },
+          { name: "ALARM", week: backtest.alarm_week, className: "alarm", source: sourceFor("condition", tag) },
+          { name: "TRIP", week: backtest.trip_week, className: "trip", source: sourceFor("condition", tag) }
+        ].filter((event) => isNumericValue(event.week) && maxWeek > minWeek);
+        byId("marker-layer").innerHTML = events.map((event) => {
+          const position = (Number(event.week) - minWeek) / (maxWeek - minWeek) * 100;
+          return `<div class="event-marker ${event.className}" style="left:${position}%" title="${escapeHtml(sourceTitle(event.source, `${event.name} event week`))}"><span class="event-marker-label">${event.name} ${number(event.week, event.source, { decimals: 0 })}</span></div>`;
+        }).join("");
+      }
+
+      function renderCockpitSaid(tag, week) {
+        const record = latestRow(tag, week);
+        const loadedRows = data.assets?.[tag] || [];
+        const loadedMax = loadedRows.length ? Number(loadedRows[loadedRows.length - 1].week) : null;
+        const source = sourceFor("condition", tag);
+        const meta = metadataFor(tag);
+        const primary = meta.primary_signal || record?.primary_signal;
+        byId("trend-title").innerHTML = sourcedText(primary || "Primary signal", sourceFor("limits", tag), "Equipment Info primary monitored parameter");
+        const projection = renderReplayChart(tag, week, primary);
+        if (!record || Number(record.week) !== Number(week)) {
+          byId("cockpit-said").innerHTML = `<h3>What the cockpit would have said</h3><p>Week ${number(week, source, { decimals: 0 })} is not present in the revealed records. The data snapshot currently ends at ${number(loadedMax, source, { decimals: 0, prefix: "Week " })}.</p><p>Run <code>python pipeline.py --advance-week</code> with the configured assumptions to reveal the next source week. No future reading is filled in here.</p>`;
+          byId("replay-data-note").innerHTML = `Replay shows only weeks already included in dashboard_data.json. ${escapeHtml(projection.message)}`;
+          return;
+        }
+        const value = record.values?.[primary];
+        const tripLimit = record.primary_trip_limit ?? meta.parameter_limits?.find((item) => item.parameter === primary)?.trip_limit;
+        const confirmed = record.drift_week !== null && record.drift_week !== undefined;
+        const thresholdHits = record.drift_threshold_hits || [];
+        const status = String(record.health_status || "");
+        let said;
+        if (status.toLowerCase().includes("trip")) said = `TRIP recorded in source status at this week. RUL is intentionally not calculated from the trip reading.`;
+        else if (confirmed) said = `Early Drift confirmed: ${sourcedText(record.drift_parameter || primary, source, "Condition History parameter column")} crossed the configured threshold for consecutive readings; the event began at ${number(record.drift_week, source, { decimals: 0, prefix: "Week " })}.`;
+        else if (thresholdHits.length) said = `Threshold candidate in ${sourcedText(thresholdHits.join(", "), source, "Condition History parameters")}; waiting for the consecutive-week confirmation.`;
+        else if (status.toLowerCase().includes("alarm")) said = `Official ALARM is active; the early-drift rule has not yet confirmed for this selected week.`;
+        else said = `No confirmed early-drift event as of this selected week.`;
+        const rulText = record.rul_weeks == null
+          ? `<span class="muted" title="${escapeHtml(sourceTitle(source, "requires five pre-trip readings and positive slope"))}">RUL: not estimable</span>`
+          : `RUL ${number(record.rul_weeks, source, { decimals: 1, suffix: " weeks" })} ± ${number(record.rul_uncertainty_weeks, source, { decimals: 1, suffix: " weeks", definition: "one-standard-error band" })} (range ${number(record.rul_weeks_low, source, { decimals: 1 })}–${number(record.rul_weeks_high, source, { decimals: 1 })}).`;
+        const exposure = record.exposure_now_usd == null ? "Not estimated" : money(record.exposure_now_usd, sourceFor("derived-risk", tag), true);
+        byId("cockpit-said").innerHTML = `<div class="eyebrow">As of ${dateText(record.date, source)}</div><h3>What the cockpit would have said</h3>
+          <p>${said}</p>
+          <p>Primary reading: ${number(value, source, { decimals: 3, definition: primary })} · trip limit ${number(tripLimit, sourceFor("limits", tag), { decimals: 3, definition: `${primary} trip limit from Equipment Info` })}.</p>
+          <p>${rulText}</p>
+          <p>Exposure at this week: ${exposure} · cost of delay ${record.cost_of_delay_per_day_usd == null ? "—" : money(record.cost_of_delay_per_day_usd, sourceFor("derived-risk", tag), false)} per day.</p>
+          <p>Status: ${statusChip(status, tag)}</p>`;
+        const projectionCopy = projection.available
+          ? `OLS projection: RUL ${number(projection.rulWeeks, source, { decimals: 1, suffix: " wk", definition: "linear least-squares extrapolation from the selected-week reading to the equipment trip threshold" })} ± ${number(projection.uncertaintyWeeks, source, { decimals: 1, suffix: " wk", definition: "one-standard-error RUL band from the source pipeline" })}; threshold crossing near ${number(projection.crossingWeek, source, { decimals: 1, prefix: "W" })}.`
+          : escapeHtml(projection.message);
+        byId("replay-data-note").innerHTML = `Source: ${escapeHtml(source)}. OLS fit uses only the latest five numeric pre-trip readings at or before the selected week. ${projectionCopy}`;
+      }
+
+      function renderReplayChart(tag, week, primary) {
+        const source = sourceFor("condition", tag);
+        const rows = (data.assets?.[tag] || []).filter((row) => Number(row.week) <= Number(week));
+        const currentRow = rows.find((row) => Number(row.week) === Number(week));
+        const tripLimit = metadataFor(tag).parameter_limits?.find((item) => item.parameter === primary)?.trip_limit;
+        const tripWeekValue = backtestFor(tag).trip_week;
+        const tripWeek = isNumericValue(tripWeekValue) ? Number(tripWeekValue) : Infinity;
+        const fitRows = rows.filter((row) =>
+          Number(row.week) < tripWeek && isNumericValue(row.values?.[primary])
+        ).slice(-5);
+        const fit = linearOls(fitRows.map((row) => ({
+          x: Number(row.week),
+          y: Number(row.values[primary])
+        })));
+        let projection = {
+          available: false,
+          message: "RUL projection is available at the early-drift preset; no future or unrevealed values are projected."
+        };
+        const currentValue = currentRow?.values?.[primary];
+        if (Number(week) >= 8) {
+          if (!currentRow) {
+            projection.message = "No observed reading exists at the selected week; projection withheld.";
+          } else if (Number(week) >= tripWeek || String(currentRow.health_status || "").toLowerCase().includes("trip")) {
+            projection.message = "Selected week is at or after the recorded TRIP event; post-trip RUL projection is withheld.";
+          } else if (!isNumericValue(currentValue) || !isNumericValue(tripLimit)) {
+            projection.message = "The selected reading or Equipment Info trip limit is missing; projection is not estimable.";
+          } else if (!fit || fitRows.length < 5 || fit.slope <= 0) {
+            projection.message = "Five numeric pre-trip readings with a positive linear OLS slope are required; projection is not estimable.";
+          } else if (Number(tripLimit) <= Number(currentValue)) {
+            projection.message = "The selected reading has reached or passed the trip limit; no positive RUL is projected.";
+          } else {
+            const rulWeeks = (Number(tripLimit) - Number(currentValue)) / fit.slope;
+            const pipelineUncertainty = isNumericValue(currentRow.rul_uncertainty_weeks)
+              ? Number(currentRow.rul_uncertainty_weeks)
+              : null;
+            const lowWeeks = isNumericValue(currentRow.rul_weeks_low)
+              ? Math.max(0, Number(currentRow.rul_weeks_low))
+              : Math.max(0, rulWeeks - (pipelineUncertainty || 0));
+            const highWeeks = isNumericValue(currentRow.rul_weeks_high)
+              ? Math.max(rulWeeks, Number(currentRow.rul_weeks_high))
+              : rulWeeks + (pipelineUncertainty || 0);
+            projection = {
+              available: true,
+              rulWeeks,
+              uncertaintyWeeks: pipelineUncertainty,
+              crossingWeek: Number(week) + rulWeeks,
+              lowWeek: Number(week) + lowWeeks,
+              highWeek: Number(week) + highWeeks,
+              startWeek: Number(week),
+              currentValue: Number(currentValue),
+              tripLimit: Number(tripLimit),
+              message: ""
+            };
+          }
+        }
+
+        if (!window.Chart) return projection;
+        const observedPoints = rows
+          .filter((row) => isNumericValue(row.values?.[primary]))
+          .map((row) => ({ x: Number(row.week), y: Number(row.values[primary]) }));
+        const xMin = observedPoints.length ? observedPoints[0].x : Number(week);
+        const xMax = projection.available ? Math.max(Number(week), projection.highWeek) : Number(week);
+        const datasets = [
+          {
+            label: primary || "Primary signal",
+            data: observedPoints,
+            borderColor: "#55d6be",
+            backgroundColor: "#55d6be22",
+            pointBackgroundColor: "#55d6be",
+            pointRadius: 2.5,
+            borderWidth: 2.5,
+            tension: 0,
+            fill: false
+          },
+          {
+            label: "Trip limit",
+            data: [
+              { x: xMin, y: isNumericValue(tripLimit) ? Number(tripLimit) : null },
+              { x: xMax, y: isNumericValue(tripLimit) ? Number(tripLimit) : null }
+            ],
+            borderColor: "#ff737b",
+            pointRadius: 0,
+            borderWidth: 1.5,
+            borderDash: [5, 4]
+          }
+        ];
+        if (projection.available) {
+          const origin = { x: projection.startWeek, y: projection.currentValue };
+          datasets.push(
+            {
+              label: "_RUL fan lower",
+              data: [origin, { x: projection.lowWeek, y: projection.tripLimit }],
+              borderColor: "rgba(93,169,255,.10)",
+              pointRadius: 0,
+              borderWidth: 1,
+              tension: 0
+            },
+            {
+              label: "RUL uncertainty fan",
+              data: [origin, { x: projection.highWeek, y: projection.tripLimit }],
+              borderColor: "rgba(93,169,255,.22)",
+              backgroundColor: "rgba(93,169,255,.12)",
+              pointRadius: 0,
+              borderWidth: 1,
+              borderDash: [3, 5],
+              fill: "-1",
+              tension: 0
+            },
+            {
+              label: "OLS RUL projection",
+              data: [origin, { x: projection.crossingWeek, y: projection.tripLimit }],
+              borderColor: "#5da9ff",
+              pointRadius: [0, 4],
+              pointBackgroundColor: "#5da9ff",
+              borderWidth: 2,
+              borderDash: [8, 5],
+              tension: 0
+            }
+          );
+        }
+        const options = chartOptions(source, primary || "Primary signal");
+        options.scales.x = {
+          type: "linear",
+          min: xMin,
+          max: xMax > xMin ? xMax : xMin + 1,
+          grid: { color: "#203247" },
+          ticks: {
+            color: "#93a5b8",
+            maxTicksLimit: 9,
+            callback: (value) => `W${Number.isInteger(Number(value)) ? Number(value) : Number(value).toFixed(1)}`
+          },
+          title: { display: false, text: "Condition week" }
+        };
+        options.plugins.legend.labels.filter = (item) => !String(item.text || "").startsWith("_");
+        options.plugins.tooltip.callbacks.label = (item) => {
+          const x = item.parsed.x;
+          const xText = Number.isInteger(x) ? `W${x}` : `W${x.toFixed(1)}`;
+          return `${item.dataset.label.replace(/^_/, "")}: ${number(item.parsed.y, source, { decimals: 2, definition: primary }).replace(/<[^>]*>/g, "")} at ${xText} · ${source}`;
+        };
+        replaceChart("replay", "replay-chart", {
+          type: "line",
+          data: { datasets },
+          options
+        });
+        return projection;
+      }
+
+      function linearOls(points) {
+        if (!Array.isArray(points) || points.length < 2) return null;
+        const xMean = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+        const yMean = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+        const sxx = points.reduce((sum, point) => sum + (point.x - xMean) ** 2, 0);
+        if (!sxx) return null;
+        const slope = points.reduce((sum, point) => sum + (point.x - xMean) * (point.y - yMean), 0) / sxx;
+        return Number.isFinite(slope) ? { slope, intercept: yMean - slope * xMean } : null;
+      }
+
+      function chartOptions(source, yTitle) {
+        return {
+          responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
+          scales: {
+            x: { grid: { color: "#203247" }, ticks: { display: false } },
+            y: { grid: { color: "#203247" }, ticks: { display: false }, title: { display: false, text: yTitle } }
+          },
+          plugins: {
+            legend: { labels: { color: "#aebdcb", boxWidth: 9, font: { size: 10 } } },
+            tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${number(item.raw, source, { decimals: 2 }).replace(/<[^>]*>/g, "")} · ${source}` } }
+          }
+        };
+      }
+
+      function replaceChart(key, canvasId, config) {
+        if (!window.Chart) return;
+        if (charts[key]) charts[key].destroy();
+        const canvas = byId(canvasId);
+        if (!canvas) return;
+        charts[key] = new Chart(canvas, config);
+      }
+
+      function rootFeedbackKey(tag, rank) { return `${tag}:hypothesis:${rank}`; }
+
+      function renderRootCause() {
+        if (!tags.length) return;
+        if (!currentAsset || !tags.includes(currentAsset)) currentAsset = tags[0];
+        fillAssetSelect(byId("root-asset"), currentAsset);
+        const hypotheses = data.hypotheses?.[currentAsset] || [];
+        const retrievalSource = sourceFor("retrieval", currentAsset);
+        const hypothesesRoot = byId("hypothesis-grid");
+        byId("rca-meta-strip").innerHTML = renderRcaMetadataStrip(currentAsset);
+        const reviewNote = byId("candidate-review-note");
+        reviewNote.hidden = currentAsset !== "PU-2101B";
+        reviewNote.textContent = currentAsset === "PU-2101B"
+          ? "The ~84% / ~16% figures are presentation review weights, not calibrated probabilities. Replay evidence below is read from the selected source week."
+          : "Evidence values below are read from the selected Replay week; retrieved candidates are screening hypotheses, not confirmed diagnoses.";
+        if (!hypotheses.length) {
+          hypothesesRoot.innerHTML = `<div class="empty-state">No evidence-backed hypotheses are available in this JSON.</div>`;
+        } else {
+          hypothesesRoot.innerHTML = hypotheses.slice(0, 2).map((item) => {
+            const presentation = candidatePresentation(currentAsset, item);
+            const support = renderCandidateEvidence(currentAsset, item, presentation, false);
+            const refute = renderCandidateEvidence(currentAsset, item, presentation, true);
+            const state = feedback[rootFeedbackKey(currentAsset, item.rank)];
+            const rankHtml = number(item.rank, retrievalSource, { decimals: 0, prefix: "Candidate ", definition: "similar-incident retrieval rank" });
+            const score = isNumericValue(item.similarity_cosine) ? Number(item.similarity_cosine) * 100 : null;
+            const confidenceBadge = presentation.reviewWeight
+              ? `<span class="candidate-confidence ${item.rank === 1 ? "high" : "low"}" title="${escapeHtml(sourceTitle("Presentation review configuration", "user-specified relative review weight; not calibrated confidence or probability"))}">${presentation.reviewWeight} · ${item.rank === 1 ? "High" : "Low"} confidence*</span>`
+              : `<span class="match-badge" title="${escapeHtml(sourceTitle(retrievalSource, "TF-IDF/cosine similarity; not causal probability"))}">${number(score, retrievalSource, { decimals: 0, suffix: "%", definition: "cosine similarity, not causal probability" })} match</span>`;
+            return `<article class="hypothesis-card">
+              <div class="hypothesis-head"><div><div class="eyebrow">${rankHtml}</div><h3>${escapeHtml(presentation.title)}</h3></div>${confidenceBadge}</div>
+              <div class="evidence-title">Supporting evidence</div>${support}
+              <div class="evidence-title">Refuting / discriminating evidence</div>${refute}
+              ${candidateVisualMarkup(currentAsset, item, presentation)}
+              <div class="hyp-actions"><button class="button confirm-button" data-feedback="confirmed" data-rank="${Number(item.rank)}">Confirm hypothesis</button><button class="button danger-button" data-feedback="rejected" data-rank="${Number(item.rank)}">Reject hypothesis</button><span class="note" data-feedback-status="${Number(item.rank)}">${state ? `Local feedback: ${escapeHtml(state)}` : "Awaiting engineer review"}</span></div>
+            </article>`;
+          }).join("");
+        }
+        renderSimilarIncidents(currentAsset);
+        renderCapaActions(currentAsset);
+        renderActions(currentAsset);
+      }
+
+      function renderCapaActions(tag) {
+        const source = `${sourceFor("rca", tag)}; dashboard_data.json / capa_audit.actions`;
+        const actions = (data.capa_audit?.actions || []).filter((action) => action.tag === tag);
+        byId("capa-asset-status").textContent = `${actions.length} audited actions`;
+        byId("capa-actions-body").innerHTML = actions.length ? actions.map((action) => {
+          const statusClass = String(action.status || "").toLowerCase().replace(/\s+/g, "-");
+          return `<tr>
+            <td>${sourcedText(action.action_id || "—", source, "CAPA action identifier")}</td>
+            <td>${sourcedText(action.description || "—", source, "Corrective / proactive action")}</td>
+            <td><span class="capa-status ${escapeHtml(statusClass)}" title="${escapeHtml(sourceTitle(source, "RCA CAPA action status"))}">${escapeHtml(action.status || "—")}</span></td>
+            <td>${sourcedText(action.pic || "—", source, "Person in charge")}</td>
+            <td>${sourcedText(action.category || "—", source, "Action category")}</td>
+          </tr>`;
+        }).join("") : `<tr><td colspan="5" class="table-empty">No CAPA actions are recorded for this asset in the dashboard data.</td></tr>`;
+      }
+
+      function renderRcaMetadataStrip(tag) {
+        const metadata = metadataFor(tag);
+        const consequence = consequenceFor(tag);
+        // AR Number: prefer consequence incident_ar_no (sourced from Incident DB), else hypothesis match
+        const arNo = consequence.incident_ar_no
+          || (data.hypotheses?.[tag] || []).map((h) => h?.similar_incident?.serial_no).find(Boolean)
+          || "—";
+        // Plant / Unit: derive from equipment name or class
+        const plantUnit = metadata.equipment_name
+          ? `${metadata.equipment_name}${metadata.equipment_type ? " · " + metadata.equipment_type : ""}`
+          : (metadata.equipment_class || tag);
+        // Risk Score: extract from RCA text excerpt if present, else from consequence
+        const rcaText = String((data.hypotheses?.[tag] || [])[0]?.rca_text_excerpt || "");
+        const riskScore = rcaText.match(/(?:PRE-RISK|RISK SCORE)[^()]*?\(Score\s*([\d,]+)\)/i)?.[1]
+          || rcaText.match(/Score\s+([\d,]+)/i)?.[1]
+          || "—";
+        // Lead PIC (RCA): from consequence record
+        const pic = consequence.pic_rca || "—";
+        const incidentSource = sourceFor("incident", tag);
+        const rcaSource = sourceFor("rca", tag);
+        const replaySource = sourceFor("condition", tag);
+        return `
+          <span class="rca-meta-badge" title="${escapeHtml(sourceTitle(incidentSource, "AR Number from Incident Database"))}">
+            <strong style="color:#90a7bc;font-weight:600;font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-right:4px">AR No.</strong>
+            <strong>${escapeHtml(arNo)}</strong>
+          </span>
+          <span class="rca-meta-badge" title="${escapeHtml(sourceTitle(incidentSource + "; " + rcaSource, "Plant / Unit from Equipment Info"))}">
+            <strong style="color:#90a7bc;font-weight:600;font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-right:4px">Plant / Unit</strong>
+            <strong>${escapeHtml(plantUnit)}</strong>
+          </span>
+          <span class="rca-meta-badge" title="${escapeHtml(sourceTitle(rcaSource, "PRE-RISK score extracted from RCA PowerPoint"))}">
+            <strong style="color:#90a7bc;font-weight:600;font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-right:4px">Risk Score</strong>
+            <strong>${escapeHtml(riskScore)}</strong>
+          </span>
+          <span class="rca-meta-badge" title="${escapeHtml(sourceTitle(incidentSource, "Lead PIC (RCA) from Incident Database"))}">
+            <strong style="color:#90a7bc;font-weight:600;font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-right:4px">Lead PIC (RCA)</strong>
+            <strong>${escapeHtml(pic)}</strong>
+          </span>
+          <span class="rca-meta-badge replay" title="${escapeHtml(sourceTitle(replaySource, "selected replay cursor; evidence uses readings at or before this week"))}">Replay: <strong>W${escapeHtml(String(selectedWeek ?? "—"))}</strong></span>`;
+      }
+
+      function candidatePresentation(tag, item) {
+        if (tag === "PU-2101B" && Number(item.rank) === 1) {
+          return {
+            title: "Mechanical Seal Degradation / Face Wear",
+            reviewWeight: "~84%",
+            supports: [
+              { parameter: "Overall Vibration (mm/s)", label: "Overall vibration trend", qualification: "The weekly Condition History provides overall vibration, not a running-frequency spectrum." },
+              { parameter: "Seal Flush Flow (L/min)", label: "Seal flush flow" }
+            ],
+            refutes: [
+              { parameter: "Discharge Pressure (barg)", label: "Available pressure check", qualification: "The Condition History has no Suction DP channel. Discharge pressure is the available pressure reading, but it is declining and cannot be used to rule out cavitation." }
+            ],
+            diagramSupport: "Overall Vibration (mm/s)",
+            diagramRefute: "Discharge Pressure (barg)"
+          };
+        }
+        if (tag === "PU-2101B" && Number(item.rank) === 2) {
+          return {
+            title: "Shaft / Coupling Misalignment",
+            reviewWeight: "~16%",
+            supports: [
+              { parameter: "2X Harmonic (mm/s)", label: "2X harmonic vibration" }
+            ],
+            refutes: [
+              { parameter: "Coupling Offset (mm)", label: "Radial coupling offset", qualification: "Neither 2X harmonic nor coupling offset is a monitored PU-2101B channel in this export; this alternative cannot be confirmed or ruled out from those measurements." }
+            ],
+            diagramSupport: "2X Harmonic (mm/s)",
+            diagramRefute: "Coupling Offset (mm)"
+          };
+        }
+        return {
+          title: item.hypothesis || "Evidence-backed screening hypothesis",
+          supports: (item.supporting_evidence || []).map((evidence) => ({ parameter: evidence.column, label: evidence.column })),
+          refutes: (item.refuting_evidence || []).map((evidence) => ({ parameter: evidence.column, label: evidence.column })),
+          diagramSupport: item.supporting_evidence?.[0]?.column,
+          diagramRefute: item.refuting_evidence?.[0]?.column,
+          originalItem: item
+        };
+      }
+
+      function renderCandidateEvidence(tag, item, presentation, isRefuting) {
+        const signals = isRefuting ? presentation.refutes : presentation.supports;
+        if (tag !== "PU-2101B") {
+          const original = isRefuting ? item.refuting_evidence : item.supporting_evidence;
+          return (original || []).map((evidence) => renderEvidenceAtReplayWeek(evidence, tag, isRefuting)).join("")
+            || `<div class="evidence ${isRefuting ? "refute" : ""}">No ${isRefuting ? "refuting" : "supporting"} telemetry evidence recorded.</div>`;
+        }
+        return signals.map((signal) => renderSelectedSignal(tag, signal, isRefuting)).join("");
+      }
+
+      function renderSelectedSignal(tag, signal, isRefuting) {
+        const record = latestRow(tag, selectedWeek);
+        const source = sourceFor("condition", tag);
+        const parameter = signal.parameter;
+        const hasReading = Boolean(record?.values && Object.prototype.hasOwnProperty.call(record.values, parameter));
+        if (!hasReading) {
+          const qualification = signal.qualification || `${parameter} is not a monitored channel for ${tag} in the supplied Condition History.`;
+          return `<div class="evidence ${isRefuting ? "refute" : ""}"><span class="field">${escapeHtml(signal.label || parameter)}</span> · ${number(selectedWeek, source, { decimals: 0, prefix: "Replay W" })}<div class="note">Not measured for ${escapeHtml(tag)} in the supplied Condition History. ${escapeHtml(qualification)}</div></div>`;
+        }
+        const value = record.values[parameter];
+        const baseline = data.baselines?.[tag]?.[parameter]?.median;
+        const zScore = record.z_scores?.[parameter];
+        const limit = metadataFor(tag).parameter_limits?.find((entry) => entry.parameter === parameter);
+        let limitText = "No Equipment Info limit recorded.";
+        let signalStatus = "NOT RATED";
+        let signalStatusClass = "";
+        if (limit) {
+          limitText = `Alarm ${number(limit.alarm_limit, sourceFor("limits", tag), { decimals: 3 })} · Trip ${number(limit.trip_limit, sourceFor("limits", tag), { decimals: 3 })}`;
+          const valueNumber = Number(value);
+          const lowerIsWorse = Number(limit.trip_limit) < Number(limit.alarm_limit);
+          signalStatus = lowerIsWorse
+            ? valueNumber <= Number(limit.trip_limit) ? "TRIP" : valueNumber <= Number(limit.alarm_limit) ? "ALARM" : "NORMAL"
+            : valueNumber >= Number(limit.trip_limit) ? "TRIP" : valueNumber >= Number(limit.alarm_limit) ? "ALARM" : "NORMAL";
+          signalStatusClass = signalStatus.toLowerCase();
+        }
+        const detail = signal.qualification ? `<div class="note">${escapeHtml(signal.qualification)}</div>` : "";
+        return `<div class="evidence ${isRefuting ? "refute" : ""}"><span class="field">${escapeHtml(signal.label || parameter)}</span> · ${number(record.week, source, { decimals: 0, prefix: "W" })} · value ${number(value, source, { decimals: 3, definition: parameter })} · <span class="status-chip ${signalStatusClass}">${signalStatus}</span> · baseline ${number(baseline, "dashboard_data.json / baselines", { decimals: 3, definition: `${parameter} median` })} · z ${number(zScore, source, { decimals: 2, suffix: "σ", definition: "robust z-score at selected replay week" })}<div class="note">${limitText}</div>${detail}</div>`;
+      }
+
+      function renderEvidenceAtReplayWeek(evidence, tag, isRefuting) {
+        const record = latestRow(tag, selectedWeek);
+        const parameter = evidence.column;
+        if (!record || !parameter || !Object.prototype.hasOwnProperty.call(record.values || {}, parameter)) {
+          return `<div class="evidence ${isRefuting ? "refute" : ""}"><span class="field">${escapeHtml(parameter || "Evidence")}</span> · Not measured in ${number(selectedWeek, sourceFor("condition", tag), { decimals: 0, prefix: "Replay W" })}.</div>`;
+        }
+        return renderSelectedSignal(tag, {
+          parameter,
+          label: parameter,
+          qualification: evidence.interpretation && String(evidence.interpretation).includes("not causal exclusion")
+            ? "A non-crossing channel is counter-evidence only; it is not a causal exclusion."
+            : ""
+        }, isRefuting);
+      }
+
+      function componentSchematicSvg(tag) {
+        // Returns a clean technical SVG component schematic per asset type.
+        // PU-2101B → API Seal Plan cross-section (mechanical seal / pump)
+        // BL-5702  → Coupling / bearing arrangement (blower)
+        // KO-3201  → Compressor rotor bearing cross-section
+        const isPump = tag === "PU-2101B";
+        const isBlower = tag === "BL-5702";
+        const label = isPump
+          ? "API SEAL PLAN — MECHANICAL SEAL (DE)"
+          : isBlower
+            ? "COUPLING & BEARING ARRANGEMENT — BLOWER"
+            : "ROTOR BEARING CROSS-SECTION — COMPRESSOR";
+        const subtitle = isPump
+          ? "Component Verification Diagram · Plan 53A / Seal Face Interface"
+          : isBlower
+            ? "Component Verification Diagram · Coupling Hub & DE/NDE Bearing"
+            : "Component Verification Diagram · DE Radial Bearing & Journal";
+
+        if (isPump) {
+          // Pump: shaft → impeller → seal faces → flush port → housing
+          return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="${escapeHtml(label)}">
+            <rect width="680" height="220" rx="14" fill="#0a1623"/>
+            <!-- Shaft -->
+            <rect x="80" y="97" width="380" height="26" rx="4" fill="#1e3a52" stroke="#3d7aaa" stroke-width="1.5"/>
+            <text x="270" y="114" fill="#8ab8d8" font-family="Arial,sans-serif" font-size="10" text-anchor="middle" font-weight="700">SHAFT</text>
+            <!-- Impeller -->
+            <ellipse cx="115" cy="110" rx="28" ry="42" fill="#122a3e" stroke="#5da9ff" stroke-width="1.5"/>
+            <text x="115" y="164" fill="#5da9ff" font-family="Arial,sans-serif" font-size="9" text-anchor="middle">IMPELLER</text>
+            <!-- Seal housing -->
+            <rect x="240" y="72" width="90" height="76" rx="6" fill="#0f2130" stroke="#55d6be" stroke-width="1.8"/>
+            <text x="285" y="87" fill="#55d6be" font-family="Arial,sans-serif" font-size="9" text-anchor="middle" font-weight="700">SEAL</text>
+            <text x="285" y="99" fill="#55d6be" font-family="Arial,sans-serif" font-size="9" text-anchor="middle" font-weight="700">HOUSING</text>
+            <!-- Seal faces -->
+            <rect x="263" y="100" width="12" height="20" rx="2" fill="#f2bd58" stroke="#f2bd58" stroke-width="1"/>
+            <rect x="279" y="100" width="12" height="20" rx="2" fill="#55d6be" stroke="#55d6be" stroke-width="1"/>
+            <text x="285" y="135" fill="#c9d8e4" font-family="Arial,sans-serif" font-size="8" text-anchor="middle">FACES</text>
+            <!-- Flush port -->
+            <line x1="310" y1="80" x2="310" y2="55" stroke="#72d9c6" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <rect x="298" y="44" width="24" height="14" rx="3" fill="#0f2a26" stroke="#72d9c6" stroke-width="1.2"/>
+            <text x="310" y="54" fill="#72d9c6" font-family="Arial,sans-serif" font-size="8" text-anchor="middle">FLUSH</text>
+            <!-- Bearing -->
+            <rect x="400" y="82" width="50" height="56" rx="5" fill="#1a2a1a" stroke="#63d7a1" stroke-width="1.5"/>
+            <circle cx="425" cy="110" r="16" fill="none" stroke="#63d7a1" stroke-width="1.5"/>
+            <circle cx="425" cy="110" r="6" fill="#1a2a1a" stroke="#63d7a1" stroke-width="1.2"/>
+            <text x="425" y="152" fill="#63d7a1" font-family="Arial,sans-serif" font-size="9" text-anchor="middle">BEARING</text>
+            <!-- Labels -->
+            <text x="340" y="22" fill="#8da4ba" font-family="Arial,sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1.5">${escapeHtml(label)}</text>
+            <text x="340" y="205" fill="#637a8e" font-family="Arial,sans-serif" font-size="9" text-anchor="middle">${escapeHtml(subtitle)}</text>
+          </svg>`;
+        }
+        if (isBlower) {
+          // Blower: DE bearing → coupling hub → shaft → NDE bearing
+          return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="${escapeHtml(label)}">
+            <rect width="680" height="220" rx="14" fill="#0a1623"/>
+            <!-- Shaft -->
+            <rect x="60" y="100" width="560" height="20" rx="3" fill="#1e3a52" stroke="#3d7aaa" stroke-width="1.5"/>
+            <text x="340" y="116" fill="#8ab8d8" font-family="Arial,sans-serif" font-size="10" text-anchor="middle" font-weight="700">SHAFT</text>
+            <!-- DE Bearing -->
+            <rect x="60" y="78" width="60" height="64" rx="7" fill="#1a2a1a" stroke="#63d7a1" stroke-width="1.8"/>
+            <circle cx="90" cy="110" r="20" fill="none" stroke="#63d7a1" stroke-width="1.5"/>
+            <circle cx="90" cy="110" r="7" fill="#1a2a1a" stroke="#63d7a1" stroke-width="1.2"/>
+            <text x="90" y="155" fill="#63d7a1" font-family="Arial,sans-serif" font-size="9" text-anchor="middle" font-weight="700">DE BEARING</text>
+            <!-- Coupling hub -->
+            <rect x="250" y="72" width="180" height="76" rx="8" fill="#0f2130" stroke="#f2bd58" stroke-width="1.8"/>
+            <!-- Coupling spider -->
+            <circle cx="310" cy="110" r="24" fill="#15273a" stroke="#f2bd58" stroke-width="1.5"/>
+            <circle cx="310" cy="110" r="9" fill="#0f2130" stroke="#f2bd58" stroke-width="1.2"/>
+            <circle cx="370" cy="110" r="24" fill="#15273a" stroke="#f2bd58" stroke-width="1.5"/>
+            <circle cx="370" cy="110" r="9" fill="#0f2130" stroke="#f2bd58" stroke-width="1.2"/>
+            <line x1="319" y1="110" x2="361" y2="110" stroke="#f2bd58" stroke-width="2" stroke-dasharray="5,3"/>
+            <text x="340" y="160" fill="#f2bd58" font-family="Arial,sans-serif" font-size="9" text-anchor="middle" font-weight="700">COUPLING ASSEMBLY</text>
+            <!-- Offset indicator -->
+            <line x1="310" y1="100" x2="370" y2="106" stroke="#ff737b" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <text x="340" y="93" fill="#ff737b" font-family="Arial,sans-serif" font-size="8" text-anchor="middle">OFFSET CHECK</text>
+            <!-- NDE Bearing -->
+            <rect x="560" y="78" width="60" height="64" rx="7" fill="#1a2a1a" stroke="#63d7a1" stroke-width="1.8"/>
+            <circle cx="590" cy="110" r="20" fill="none" stroke="#63d7a1" stroke-width="1.5"/>
+            <circle cx="590" cy="110" r="7" fill="#1a2a1a" stroke="#63d7a1" stroke-width="1.2"/>
+            <text x="590" y="155" fill="#63d7a1" font-family="Arial,sans-serif" font-size="9" text-anchor="middle" font-weight="700">NDE BEARING</text>
+            <!-- Labels -->
+            <text x="340" y="22" fill="#8da4ba" font-family="Arial,sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1.5">${escapeHtml(label)}</text>
+            <text x="340" y="205" fill="#637a8e" font-family="Arial,sans-serif" font-size="9" text-anchor="middle">${escapeHtml(subtitle)}</text>
+          </svg>`;
+        }
+        // Compressor KO-3201: journal bearing + radial vibration probe positions
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="${escapeHtml(label)}">
+          <rect width="680" height="220" rx="14" fill="#0a1623"/>
+          <!-- Shaft / Journal -->
+          <rect x="60" y="98" width="560" height="24" rx="4" fill="#1e3a52" stroke="#3d7aaa" stroke-width="1.5"/>
+          <text x="340" y="115" fill="#8ab8d8" font-family="Arial,sans-serif" font-size="10" text-anchor="middle" font-weight="700">ROTOR / JOURNAL</text>
+          <!-- DE Radial Bearing housing -->
+          <rect x="70" y="68" width="120" height="84" rx="9" fill="#0f2130" stroke="#5da9ff" stroke-width="2"/>
+          <circle cx="130" cy="110" r="30" fill="none" stroke="#5da9ff" stroke-width="1.8"/>
+          <circle cx="130" cy="110" r="12" fill="#1e3a52" stroke="#5da9ff" stroke-width="1.5"/>
+          <text x="130" y="165" fill="#5da9ff" font-family="Arial,sans-serif" font-size="9" text-anchor="middle" font-weight="700">DE RADIAL</text>
+          <text x="130" y="176" fill="#5da9ff" font-family="Arial,sans-serif" font-size="9" text-anchor="middle" font-weight="700">BEARING</text>
+          <!-- Radial vibration probe X/Y -->
+          <line x1="155" y1="85" x2="178" y2="68" stroke="#72d9c6" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <rect x="175" y="56" width="32" height="14" rx="3" fill="#0f2a26" stroke="#72d9c6" stroke-width="1.2"/>
+          <text x="191" y="66" fill="#72d9c6" font-family="Arial,sans-serif" font-size="8" text-anchor="middle">X PROBE</text>
+          <line x1="155" y1="133" x2="178" y2="152" stroke="#72d9c6" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <rect x="175" y="150" width="32" height="14" rx="3" fill="#0f2a26" stroke="#72d9c6" stroke-width="1.2"/>
+          <text x="191" y="160" fill="#72d9c6" font-family="Arial,sans-serif" font-size="8" text-anchor="middle">Y PROBE</text>
+          <!-- NDE Bearing housing -->
+          <rect x="490" y="68" width="120" height="84" rx="9" fill="#0f2130" stroke="#63d7a1" stroke-width="2"/>
+          <circle cx="550" cy="110" r="30" fill="none" stroke="#63d7a1" stroke-width="1.8"/>
+          <circle cx="550" cy="110" r="12" fill="#1e3a52" stroke="#63d7a1" stroke-width="1.5"/>
+          <text x="550" y="165" fill="#63d7a1" font-family="Arial,sans-serif" font-size="9" text-anchor="middle" font-weight="700">NDE BEARING</text>
+          <!-- Bearing Metal Temp probe -->
+          <line x1="570" y1="85" x2="595" y2="68" stroke="#f2bd58" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <rect x="592" y="56" width="42" height="14" rx="3" fill="#2c2414" stroke="#f2bd58" stroke-width="1.2"/>
+          <text x="613" y="66" fill="#f2bd58" font-family="Arial,sans-serif" font-size="8" text-anchor="middle">TEMP PROBE</text>
+          <!-- Lube oil port -->
+          <line x1="340" y1="68" x2="340" y2="46" stroke="#c18aff" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <rect x="316" y="34" width="48" height="14" rx="3" fill="#1a1030" stroke="#c18aff" stroke-width="1.2"/>
+          <text x="340" y="44" fill="#c18aff" font-family="Arial,sans-serif" font-size="8" text-anchor="middle">LUBE OIL PORT</text>
+          <!-- Labels -->
+          <text x="340" y="22" fill="#8da4ba" font-family="Arial,sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1.5">${escapeHtml(label)}</text>
+          <text x="340" y="205" fill="#637a8e" font-family="Arial,sans-serif" font-size="9" text-anchor="middle">${escapeHtml(subtitle)}</text>
+        </svg>`;
+      }
+
+      function candidateVisualMarkup(tag, item, presentation) {
+        const source = `${sourceFor("condition", tag)}; ${sourceFor("limits", tag)}; dashboard_data.json / baselines`;
+        const diagramItem = {
+          ...item,
+          supporting_evidence: [{ column: presentation.diagramSupport || item.supporting_evidence?.[0]?.column }],
+          refuting_evidence: [{ column: presentation.diagramRefute || item.refuting_evidence?.[0]?.column }]
+        };
+        const evidenceSvg = evidenceDiagramSvg(tag, diagramItem);
+        const evidenceUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(evidenceSvg).replace(/'/g, "%27")}`;
+        const schematicSvg = componentSchematicSvg(tag);
+        const schematicUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(schematicSvg).replace(/'/g, "%27")}`;
+        const rank = Number(item.rank);
+        return `<div class="visual-evidence-grid" aria-label="Visual and diagram evidence">
+          <button class="visual-tile" type="button" data-visual-open="inspection" data-visual-tag="${escapeHtml(tag)}" data-visual-rank="${rank}" title="${escapeHtml(sourceTitle(source, "Component Verification Diagram: technical schematic for the monitored component."))}">
+            <span class="visual-tile-head"><span>Component Verification Diagram</span><span>↗</span></span>
+            <img class="visual-diagram-img" src="${schematicUri}" alt="Component schematic for ${escapeHtml(tag)}" style="aspect-ratio:680/220;min-height:140px;">
+            <span class="visual-tile-caption"><span>Technical component schematic</span><span class="muted">Illustrative · not a teardown photo</span></span>
+          </button>
+          <button class="visual-tile" type="button" data-visual-open="diagram" data-visual-tag="${escapeHtml(tag)}" data-visual-rank="${rank}" title="${escapeHtml(sourceTitle(source, "Selected-week supporting and discriminating Condition History channels, baseline z-score, and Equipment Info limits."))}">
+            <span class="visual-tile-head"><span>Supporting Evidence Diagram</span><span>↗</span></span>
+            <img class="visual-diagram-img" src="${evidenceUri}" alt="Source-derived condition evidence diagram for ${escapeHtml(tag)} candidate ${rank}">
+            <span class="visual-tile-caption"><span>Supporting vs. refuting telemetry</span><span class="muted">Selected replay week</span></span>
+          </button>
+        </div>`;
+      }
+
+      function inspectionTagMarkup(tag) {
+        const metadata = metadataFor(tag);
+        const record = latestRow(tag, selectedWeek);
+        const limits = metadata.parameter_limits || [];
+        const preferred = tag === "PU-2101B"
+          ? ["Overall Vibration (mm/s)", "Seal Flush Flow (L/min)"]
+          : [metadata.primary_signal, ...limits.map((limit) => limit.parameter).filter((name) => name !== metadata.primary_signal)].filter(Boolean).slice(0, 2);
+        const component = tag === "PU-2101B" ? "MECHANICAL SEAL · DE" : String(metadata.dominant_failure_mode || metadata.equipment_type || "COMPONENT").toUpperCase();
+        const status = String(record?.health_status || "NOT RECORDED").toUpperCase();
+        const statusClass = status.includes("TRIP") ? "trip" : status.includes("ALARM") ? "alarm" : status.includes("NORMAL") ? "normal" : "";
+        const metric = (parameter) => {
+          const value = record?.values?.[parameter];
+          const limit = limits.find((entry) => entry.parameter === parameter);
+          const zScore = record?.z_scores?.[parameter];
+          const unit = String(parameter).match(/\(([^()]*)\)/)?.[1] || "";
+          const limitsText = limit
+            ? `Alarm ${escapeHtml(Number(limit.alarm_limit).toFixed(3))} · Trip ${escapeHtml(Number(limit.trip_limit).toFixed(3))}`
+            : "Equipment Info limit not listed";
+          return `<div class="inspection-metric"><span class="inspection-metric-label">${escapeHtml(parameter)}</span><strong>${isNumericValue(value) ? Number(value).toFixed(3) : "—"} <small>${escapeHtml(unit)}</small></strong><div class="inspection-metric-foot">${limitsText} · z ${isNumericValue(zScore) ? Number(zScore).toFixed(2) : "—"}σ</div></div>`;
+        };
+        const readingOne = preferred[0];
+        const readingTwo = preferred[1];
+        return `<div class="inspection-tag-card" role="img" aria-label="Illustrative component tag card for ${escapeHtml(tag)} at replay week ${escapeHtml(record?.week ?? selectedWeek)}">
+          <div class="inspection-tag-main">
+            <span class="inspection-tag-icon" aria-hidden="true"><svg width="27" height="27" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="11" stroke="currentColor" stroke-width="1.8"/><circle cx="16" cy="16" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M16 2v6M16 24v6M2 16h6M24 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 10l4 4m8 8-4-4m4-8-4 4m-8 8 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span>
+            <span class="inspection-tag-copy"><small>Equipment tag · inspection reference</small><strong>${escapeHtml(tag)}</strong><span>${escapeHtml(component)}</span></span>
+          </div>
+          <span class="status-chip ${statusClass} inspection-state">${escapeHtml(status)} · W${escapeHtml(record?.week ?? selectedWeek ?? "—")}</span>
+          <div class="inspection-metrics">${readingOne ? metric(readingOne) : ""}${readingTwo ? metric(readingTwo) : ""}</div>
+          <div class="inspection-footnote">Illustrative component tag card · condition readings are source-linked; no teardown photo or verified Plan 53A piping drawing is supplied.</div>
+        </div>`;
+      }
+
+      function evidenceDiagramSvg(tag, item) {
+        const record = latestRow(tag, selectedWeek);
+        const metadata = metadataFor(tag);
+        const support = item.supporting_evidence?.[0] || {};
+        const refute = item.refuting_evidence?.[0] || {};
+        const supportParameter = support.column || metadata.primary_signal;
+        const refuteParameter = refute.column;
+        const baselines = data.baselines?.[tag] || {};
+        const supportValue = record?.values?.[supportParameter];
+        const baseline = baselines[supportParameter]?.median;
+        const zScore = record?.z_scores?.[supportParameter];
+        const refuteValue = record?.values?.[refuteParameter];
+        const refuteLimit = metadata.parameter_limits?.find((limit) => limit.parameter === refuteParameter);
+        const week = record ? `W${record.week}` : "No reading at selected week";
+        const fmt = (value, digits = 2) => isNumericValue(value) ? Number(value).toFixed(digits) : "—";
+        const xml = (value) => escapeHtml(value ?? "—");
+        const z = isNumericValue(zScore) ? Number(zScore) : null;
+        const threshold = isNumericValue(data.configuration?.drift_z_threshold) ? Number(data.configuration.drift_z_threshold) : 3;
+        const gaugeLeft = 82;
+        const gaugeRight = 405;
+        const gaugeCenter = (gaugeLeft + gaugeRight) / 2;
+        const zPosition = z === null ? gaugeCenter : gaugeCenter + Math.max(-1, Math.min(1, z / threshold)) * (gaugeRight - gaugeLeft) / 2;
+        const source = `${sourceFor("condition", tag)}; ${sourceFor("limits", tag)}; dashboard_data.json / baselines and configuration`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 280" role="img" aria-label="Condition evidence diagram for ${xml(tag)} ${xml(week)}">
+          <title>${xml(source)}. Values are selected-week telemetry, not causal proof.</title>
+          <defs><linearGradient id="evidence-bg-${xml(tag)}-${Number(item.rank)}" x1="0" x2="1"><stop offset="0" stop-color="#101f30"/><stop offset="1" stop-color="#0b1724"/></linearGradient></defs>
+          <rect width="920" height="280" rx="18" fill="url(#evidence-bg-${xml(tag)}-${Number(item.rank)})"/>
+          <text x="28" y="32" fill="#8da4ba" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="2">CONDITION EVIDENCE · ${xml(week)}</text>
+          <rect x="24" y="48" width="420" height="205" rx="13" fill="#10251f" stroke="#35765d" stroke-width="1.5"/>
+          <text x="44" y="77" fill="#72d7ab" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">SUPPORTING CHANNEL</text>
+          <text x="44" y="105" fill="#edf5fa" font-family="Arial,sans-serif" font-size="17" font-weight="700">${xml(supportParameter)}</text>
+          <text x="44" y="133" fill="#c9d8e4" font-family="Arial,sans-serif" font-size="13">Observed ${fmt(supportValue, 3)} · baseline median ${fmt(baseline, 3)}</text>
+          <text x="44" y="158" fill="#c9d8e4" font-family="Arial,sans-serif" font-size="13">Robust z-score ${z === null ? "—" : z.toFixed(2)}σ · drift threshold ±${threshold}σ</text>
+          <line x1="${gaugeLeft}" y1="205" x2="${gaugeRight}" y2="205" stroke="#58766a" stroke-width="5" stroke-linecap="round"/>
+          <line x1="${gaugeLeft}" y1="195" x2="${gaugeLeft}" y2="215" stroke="#f2bd58" stroke-width="2"/><line x1="${gaugeRight}" y1="195" x2="${gaugeRight}" y2="215" stroke="#f2bd58" stroke-width="2"/>
+          <circle cx="${zPosition.toFixed(1)}" cy="205" r="8" fill="#55d6be" stroke="#e8fff8" stroke-width="2"/>
+          <text x="${gaugeLeft}" y="235" fill="#9bb0c3" font-family="Arial,sans-serif" font-size="11">−${threshold}σ</text><text x="${gaugeCenter}" y="235" fill="#9bb0c3" font-family="Arial,sans-serif" font-size="11" text-anchor="middle">baseline 0σ</text><text x="${gaugeRight}" y="235" fill="#9bb0c3" font-family="Arial,sans-serif" font-size="11" text-anchor="end">+${threshold}σ</text>
+          <rect x="476" y="48" width="420" height="205" rx="13" fill="#292216" stroke="#876b37" stroke-width="1.5"/>
+          <text x="496" y="77" fill="#f2bd58" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">REFUTING / DISCRIMINATING CHECK</text>
+          <text x="496" y="105" fill="#edf5fa" font-family="Arial,sans-serif" font-size="17" font-weight="700">${xml(refuteParameter || "No refuting channel recorded")}</text>
+          <text x="496" y="133" fill="#e3d8c2" font-family="Arial,sans-serif" font-size="13">Observed ${fmt(refuteValue, 3)} · alarm ${fmt(refuteLimit?.alarm_limit, 3)} · trip ${fmt(refuteLimit?.trip_limit, 3)}</text>
+          <text x="496" y="158" fill="#bfb29a" font-family="Arial,sans-serif" font-size="12">A non-crossing channel is discriminating evidence, not causal exclusion.</text>
+          <line x1="520" y1="205" x2="850" y2="205" stroke="#685834" stroke-width="5" stroke-linecap="round"/>
+          <line x1="${refuteLimit && isNumericValue(refuteLimit.alarm_limit) && isNumericValue(refuteLimit.trip_limit) && Number(refuteLimit.trip_limit) !== Number(refuteLimit.alarm_limit) ? (520 + (Number(refuteLimit.alarm_limit) / Math.max(Number(refuteLimit.alarm_limit), Number(refuteLimit.trip_limit), Number(refuteValue) || 0.0001)) * 330).toFixed(1) : 650}" y1="194" x2="${refuteLimit && isNumericValue(refuteLimit.alarm_limit) && isNumericValue(refuteLimit.trip_limit) && Number(refuteLimit.trip_limit) !== Number(refuteLimit.alarm_limit) ? (520 + (Number(refuteLimit.alarm_limit) / Math.max(Number(refuteLimit.alarm_limit), Number(refuteLimit.trip_limit), Number(refuteValue) || 0.0001)) * 330).toFixed(1) : 650}" y2="216" stroke="#f2bd58" stroke-width="2"/>
+          <line x1="${refuteLimit && isNumericValue(refuteLimit.alarm_limit) && isNumericValue(refuteLimit.trip_limit) && Number(refuteLimit.trip_limit) !== Number(refuteLimit.alarm_limit) ? (520 + (Number(refuteLimit.trip_limit) / Math.max(Number(refuteLimit.alarm_limit), Number(refuteLimit.trip_limit), Number(refuteValue) || 0.0001)) * 330).toFixed(1) : 850}" y1="194" x2="${refuteLimit && isNumericValue(refuteLimit.alarm_limit) && isNumericValue(refuteLimit.trip_limit) && Number(refuteLimit.trip_limit) !== Number(refuteLimit.alarm_limit) ? (520 + (Number(refuteLimit.trip_limit) / Math.max(Number(refuteLimit.alarm_limit), Number(refuteLimit.trip_limit), Number(refuteValue) || 0.0001)) * 330).toFixed(1) : 850}" y2="216" stroke="#ff737b" stroke-width="2"/>
+          <circle cx="${refuteLimit && isNumericValue(refuteLimit.trip_limit) ? (520 + (Math.max(0, Math.min(Number(refuteLimit.trip_limit), Number(refuteValue) || 0)) / Math.max(Number(refuteLimit.alarm_limit) || 0, Number(refuteLimit.trip_limit), Number(refuteValue) || 0.0001)) * 330).toFixed(1) : 520}" cy="205" r="7" fill="#f5e5c0" stroke="#0b1724" stroke-width="2"/>
+          <text x="520" y="235" fill="#c1b18f" font-family="Arial,sans-serif" font-size="11">reading</text><text x="850" y="235" fill="#c1b18f" font-family="Arial,sans-serif" font-size="11" text-anchor="end">alarm / trip refs</text>
+        </svg>`;
+      }
+
+      function openVisualModal(kind, tag, rank) {
+        const item = (data.hypotheses?.[tag] || []).find((hypothesis) => Number(hypothesis.rank) === Number(rank));
+        if (!item) return;
+        const modal = byId("visual-modal");
+        const content = byId("visual-modal-content");
+        if (kind === "inspection") {
+          byId("visual-modal-title").textContent = `Component Verification Diagram · ${tag}`;
+          const svg = componentSchematicSvg(tag);
+          const uri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg).replace(/'/g, "%27")}`;
+          content.innerHTML = `<img src="${uri}" alt="Component schematic for ${escapeHtml(tag)}" style="display:block;width:100%;height:auto;">`;
+          const lineage = `${sourceFor("condition", tag)}; ${sourceFor("limits", tag)}; ${sourceFor("rca", tag)}`;
+          byId("visual-modal-source").innerHTML = sourcedText(lineage, lineage, "Illustrative component schematic for the monitored component; not a teardown photograph or verified piping plan.");
+        } else {
+          const presentation = candidatePresentation(tag, item);
+          const diagramItem = {
+            ...item,
+            supporting_evidence: [{ column: presentation.diagramSupport || item.supporting_evidence?.[0]?.column }],
+            refuting_evidence: [{ column: presentation.diagramRefute || item.refuting_evidence?.[0]?.column }]
+          };
+          const svg = evidenceDiagramSvg(tag, diagramItem);
+          const uri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg).replace(/'/g, "%27")}`;
+          byId("visual-modal-title").textContent = `Supporting telemetry diagram · Candidate ${rank}`;
+          content.innerHTML = `<img src="${uri}" alt="Enlarged supporting and refuting telemetry evidence for ${escapeHtml(tag)} candidate ${Number(rank)}">`;
+          const lineage = `${sourceFor("condition", tag)}; ${sourceFor("limits", tag)}; dashboard_data.json / baselines`;
+          byId("visual-modal-source").innerHTML = sourcedText(lineage, lineage, "Selected-week telemetry, baseline robust z-score, and Equipment Info limits. Diagram only; not a teardown photograph or causal proof.");
+        }
+        if (!modal.open) modal.showModal();
+      }
+
+      function renderSimilarIncidents(tag) {
+        const matches = data.similar_incidents?.[tag] || [];
+        const source = sourceFor("incident", tag);
+        const retrievalSource = sourceFor("retrieval", tag);
+        byId("similar-table-body").innerHTML = matches.length ? matches.map((match) => `<tr>
+          <td>${number(isNumericValue(match.similarity_cosine) ? Number(match.similarity_cosine) * 100 : null, retrievalSource, { decimals: 0, suffix: "%", definition: "TF-IDF/cosine match" })}</td>
+          <td>${sourcedText(match.serial_no || "—", source, "Serial No")}</td>
+          <td>${sourcedText(match.tag || "—", source, "Tag Number")}</td>
+          <td>${sourcedText(match.risk_case_title || "—", source, "Risk Case Title")}</td>
+          <td>${sourcedText([match.component, match.f_mechanism].filter(Boolean).join(" · ") || "—", source, "Component · F Mechanism")}</td>
+          <td>${money(match.loss_usd, source, true)}</td>
+          <td>${sourcedText(match.status || "—", source, "Overall Status")}</td>
+        </tr>`).join("") : `<tr><td colspan="7" class="table-empty">No similar incidents in source data.</td></tr>`;
+      }
+
+      function renderActions(tag) {
+        const action = (data.actions || []).find((item) => item.tag === tag);
+        const consequence = consequenceFor(tag);
+        const source = sourceFor("incident", tag);
+        const alertWeek = isNumericValue(selectedWeek) && Number(selectedWeek) >= 8;
+        const dispatchKey = `${tag}:dispatch`;
+        const dispatched = feedback[dispatchKey];
+        const button = byId("dispatch-button");
+        button.disabled = !alertWeek;
+        button.textContent = dispatched ? "View Work Order Contract" : "Dispatch Work Order";
+        button.title = sourceTitle(sourceFor("condition", tag), "Demo dispatch is enabled when the selected replay week is W8 or later.");
+        byId("dispatch-note").innerHTML = alertWeek
+          ? `Replay is at ${number(selectedWeek, sourceFor("condition", tag), { decimals: 0, prefix: "W", definition: "selected replay source week" })}; open a demo SAP PM / CMMS action contract. No live system write-back is connected.`
+          : `Dispatch unlocks at replay ${number(8, sourceFor("condition", tag), { decimals: 0, prefix: "W", definition: "presentation rule: alert state starts at Week 8" })} (alert state). Use a replay preset or move the slider forward.`;
+        button.onclick = () => {
+          if (!alertWeek) return;
+          openDispatchContract(tag, action);
+        };
+        const due = consequence.rca_due_date;
+        if (dispatched) {
+          const remaining = dispatchDaysRemaining(dispatched);
+          const status = remaining > 0 ? "DISPATCHED / ACTIVE SLA" : "DISPATCHED / SLA EXPIRED";
+          byId("dispatch-state").innerHTML = `<span class="status-chip ${remaining > 0 ? "alarm" : "trip"}">${status}</span> · ${number(remaining, "Local demo dispatch state / 7-day SLA started at authorization", { decimals: 0, suffix: " days", definition: "days remaining until demo SLA expiry" })} remaining · WO ${sourcedText(dispatched.work_order_id, "Local demo dispatch state", "browser-local work order reference")} · Lead ${sourcedText("Lead Reliability Engineer", "Demo action contract / role assignment", "named person is not present in supplied baseline")} · RCA PIC ${sourcedText(consequence.pic_rca || "not recorded", source, "PIC (RCA)")} · due ${dateText(due, source)}.`;
+        } else {
+          byId("dispatch-state").innerHTML = alertWeek
+            ? `Status: ${sourcedText("READY FOR HUMAN AUTHORIZATION", "Replay cursor / Condition History", "selected replay week is 8 or later; no dispatch action has been authorized")}. Source RCA PIC ${sourcedText(consequence.pic_rca || "not recorded", source, "PIC (RCA)")} · due ${dateText(due, source)}.`
+            : "No dispatch recorded. Alert-state contract becomes available at W8.";
+        }
+        renderSignoff(tag);
+      }
+
+      function dispatchDaysRemaining(dispatch) {
+        const authorized = Date.parse(dispatch?.authorized_at || "");
+        if (!Number.isFinite(authorized)) return 7;
+        return Math.max(0, Math.ceil((authorized + 7 * 86400000 - Date.now()) / 86400000));
+      }
+
+      function openDispatchContract(tag, action) {
+        const key = `${tag}:dispatch`;
+        const existing = feedback[key];
+        const week = Number(selectedWeek);
+        const workOrderId = existing?.work_order_id || `CAP-WO-${tag}-${String(week).padStart(2, "0")}`;
+        pendingDispatch = { key, tag, workOrderId, week, action };
+        const conditionSource = sourceFor("condition", tag);
+        byId("contract-work-order").innerHTML = sourcedText(workOrderId, "Demo CMMS / SAP PM action contract", "demo-generated identifier; replay week suffix is not a source system ID");
+        byId("contract-target").innerHTML = sourcedText(tag, conditionSource, "Equipment Tag in Condition History");
+        byId("contract-lead").innerHTML = `${sourcedText("Lead Reliability Engineer", "Demo dispatcher contract / user-requested role", "role assignment only; named engineer is not in the source baseline")}${action?.owner ? `<div class="note">RCA PIC on source incident: ${sourcedText(action.owner, sourceFor("incident"), "PIC (RCA)")}</div>` : ""}`;
+        byId("contract-sop").innerHTML = sourcedText(
+          "Reliability alert response: inspect the indicated equipment, complete RCA, and verify post-repair condition against the sign-off criteria. Confirm the current site SOP document ID before live work.",
+          `${conditionSource}; dashboard_data.json / configuration.signoff_z_threshold and signoff_consecutive_weekly_readings`,
+          "Demo work scope; site-specific SOP code is not present in supplied data"
+        );
+        const active = Boolean(existing);
+        const days = active ? dispatchDaysRemaining(existing) : 7;
+        byId("contract-sla").innerHTML = active
+          ? `${number(days, "Local demo dispatch state / 7-day SLA", { decimals: 0, suffix: " days remaining", definition: "authorization timestamp plus seven days" })}${days === 0 ? " · expired" : " · active"}`
+          : `${number(7, "Demo dispatcher contract / user-specified SLA", { decimals: 0, suffix: " days", definition: "countdown starts after authorization" })} · starts on authorization`;
+        const authorize = byId("authorize-dispatch");
+        authorize.disabled = active;
+        authorize.textContent = active ? "Already Authorized" : "Authorize Dispatch";
+        const dialog = byId("dispatch-modal");
+        if (!dialog.open) dialog.showModal();
+      }
+
+      function postRepairCheck(tag) {
+        const rows = (data.assets?.[tag] || []).filter((row) => Number(row.week) <= Number(selectedWeek));
+        const backtest = backtestFor(tag);
+        const primary = metadataFor(tag).primary_signal;
+        const config = data.configuration || {};
+        const threshold = isNumericValue(config.signoff_z_threshold) ? Number(config.signoff_z_threshold) : NaN;
+        const required = isNumericValue(config.signoff_consecutive_weekly_readings) ? Number(config.signoff_consecutive_weekly_readings) : NaN;
+        const marked = rows.find((row) => String(row.remark || "").toLowerCase().includes("post-repair"));
+        const firstAfterTrip = isNumericValue(backtest.trip_week)
+          ? rows.find((row) => Number(row.week) > Number(backtest.trip_week) && String(row.health_status).toLowerCase() === "normal")
+          : null;
+        const startWeek = marked ? Number(marked.week) : (firstAfterTrip ? Number(firstAfterTrip.week) : null);
+        if (!Number.isFinite(threshold) || !Number.isFinite(required) || !primary || startWeek === null) {
+          return { eligible: false, reason: "The JSON does not contain a post-repair marker, primary signal, or sign-off rule configuration.", readings: [], required, threshold, primary, startWeek };
+        }
+        const candidates = rows.filter((row) => Number(row.week) >= startWeek);
+        let qualifying = null;
+        for (let index = 0; index <= candidates.length - required; index += 1) {
+          const group = candidates.slice(index, index + required);
+          const consecutive = group.every((row, offset) => offset === 0 || Number(row.week) === Number(group[offset - 1].week) + 1);
+          const within = group.every((row) => {
+            const rawZ = row.z_scores?.[primary];
+            const z = Number(rawZ);
+            return isNumericValue(rawZ) && Number.isFinite(z) && z <= threshold && String(row.health_status || "").toLowerCase() === "normal";
+          });
+          if (consecutive && within) { qualifying = group; break; }
+        }
+        const readings = candidates.map((row) => ({
+          week: row.week,
+          value: row.values?.[primary],
+          z: row.z_scores?.[primary],
+          status: row.health_status,
+          within: isNumericValue(row.z_scores?.[primary]) && Number(row.z_scores[primary]) <= threshold
+        }));
+        const dataEndsBeforeRequired = candidates.length < required;
+        const loadedEndWeek = rows.length ? Number(rows[rows.length - 1].week) : null;
+        const reason = qualifying
+          ? `Verified from post-repair source readings beginning at Week ${qualifying[0].week}.`
+          : startWeek === null && isNumericValue(loadedEndWeek) && isNumericValue(backtest.trip_week) && loadedEndWeek <= Number(backtest.trip_week)
+            ? `The revealed snapshot ends at Week ${loadedEndWeek}, before any post-repair Condition History reading is present; ticket stays open.`
+          : dataEndsBeforeRequired
+            ? `Only ${candidates.length} post-repair reading(s) are in this snapshot; ${required} consecutive readings are required.`
+            : `No consecutive post-repair readings satisfy z ≤ +${threshold}σ on ${primary} with NORMAL status.`;
+        return { eligible: Boolean(qualifying), reason, readings, required, threshold, primary, startWeek, qualifying };
+      }
+
+      function renderSignoff(tag) {
+        const check = postRepairCheck(tag);
+        signoffEligibility = check;
+        const source = sourceFor("condition", tag);
+        const stored = feedback[`${tag}:signed-off`];
+        const isSigned = Boolean(stored && check.eligible);
+        const status = byId("signoff-status");
+        status.innerHTML = `${isSigned ? `<span class="positive">CLOSED &amp; VERIFIED: Telemetry returned to &lt;= +${Number(check.threshold).toFixed(1)}σ baseline.</span>` : check.eligible ? `<span class="positive">Eligible to close.</span>` : `<span class="warning">Ticket remains open.</span>`} ${sourcedText(check.reason, source, "post-repair primary signal and Health Status")} ${check.threshold == null ? "" : `Rule: z ≤ +${number(check.threshold, "dashboard_data.json / configuration.signoff_z_threshold", { decimals: 1, suffix: "σ" })} for ${number(check.required, "dashboard_data.json / configuration.signoff_consecutive_weekly_readings", { decimals: 0 })} consecutive NORMAL readings.`}`;
+        const list = byId("postrepair-readings");
+        list.innerHTML = check.readings?.length ? check.readings.map((reading) => `<div class="reading-row"><span>${number(reading.week, source, { decimals: 0, prefix: "Week " })} · ${number(reading.value, source, { decimals: 3, definition: check.primary })}</span><span class="${reading.within ? "positive" : "warning"}">z ${number(reading.z, source, { decimals: 2, suffix: "σ" })} · ${sourcedText(reading.status || "Unknown", source, "Health Status")}</span></div>`).join("") : `<div class="note">No post-repair readings are available in this snapshot. Sign-off stays open until the source includes post-repair weeks and the rule can be evaluated.</div>`;
+        const button = byId("signoff-button");
+        button.disabled = !check.eligible || isSigned;
+        button.textContent = isSigned ? "Signed off · verified" : "Sign-off resolution";
+        button.onclick = () => {
+          const recheck = postRepairCheck(tag);
+          if (!recheck.eligible) return;
+          feedback[`${tag}:signed-off`] = { at: new Date().toISOString(), weeks: recheck.qualifying.map((row) => row.week), primary_signal: recheck.primary };
+          saveFeedback();
+          renderSignoff(tag);
+        };
+        byId("signoff-state").textContent = isSigned
+          ? `Local demo sign-off stored for source weeks ${stored.weeks.map((week) => number(week, source, { decimals: 0 })).join(", ")}; no CMMS/DCS write-back.`
+          : "Sign-off is local to this browser. It cannot close the ticket unless the source readings pass.";
+      }
+
+      function activateTab(name) {
+        document.querySelectorAll(".nav-button").forEach((button) => {
+          const active = button.dataset.tab === name;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-selected", String(active));
+        });
+        document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("active", panel.id === `tab-${name}`));
+        if (name === "problem-tank") renderProblemTank();
+        if (name === "replay") renderReplay();
+        if (name === "root-cause") renderRootCause();
+      }
+
+      function connectControls() {
+        document.querySelectorAll(".nav-button").forEach((button) => button.addEventListener("click", () => activateTab(button.dataset.tab)));
+        document.querySelectorAll("[data-exec-view]").forEach((button) => button.addEventListener("click", () => {
+          document.querySelectorAll("[data-exec-view]").forEach((item) => item.classList.toggle("active", item === button));
+          byId("exec-overview").classList.toggle("active", button.dataset.execView === "overview");
+          byId("exec-kill-list").classList.toggle("active", button.dataset.execView === "kill-list");
+        }));
+        byId("energy-asset").addEventListener("change", (event) => { energyAsset = event.target.value; renderEnergy(); });
+        byId("replay-asset").addEventListener("change", (event) => { currentAsset = event.target.value; renderReplay(); });
+        byId("root-asset").addEventListener("change", (event) => { currentAsset = event.target.value; renderRootCause(); });
+        byId("week-slider").addEventListener("input", (event) => {
+          selectedWeek = Number(event.target.value);
+          renderReplay();
+          updateForwardRiskTile(selectedWeek);
+          renderProblemTank();
+          renderRootCause();
+        });
+        document.querySelectorAll("[data-preset-week]").forEach((button) => button.addEventListener("click", () => {
+          if (button.disabled) return;
+          byId("week-slider").value = button.dataset.presetWeek;
+          byId("week-slider").dispatchEvent(new Event("input", { bubbles: true }));
+        }));
+        byId("dispatch-modal-close").addEventListener("click", () => byId("dispatch-modal").close());
+        byId("dispatch-modal-cancel").addEventListener("click", () => byId("dispatch-modal").close());
+        byId("visual-modal-close").addEventListener("click", () => byId("visual-modal").close());
+        byId("authorize-dispatch").addEventListener("click", () => {
+          if (!pendingDispatch || feedback[pendingDispatch.key]) return;
+          feedback[pendingDispatch.key] = {
+            work_order_id: pendingDispatch.workOrderId,
+            tag: pendingDispatch.tag,
+            replay_week: pendingDispatch.week,
+            authorized_at: new Date().toISOString(),
+            sla_days: 7,
+            state: "DISPATCHED / ACTIVE SLA"
+          };
+          saveFeedback();
+          byId("dispatch-modal").close();
+          renderActions(pendingDispatch.tag);
+        });
+        document.addEventListener("click", (event) => {
+          const visualButton = event.target.closest("[data-visual-open]");
+          if (visualButton) {
+            openVisualModal(visualButton.dataset.visualOpen, visualButton.dataset.visualTag, visualButton.dataset.visualRank);
+            return;
+          }
+          const feedbackButton = event.target.closest("[data-feedback]");
+          if (feedbackButton) {
+            const rank = Number(feedbackButton.dataset.rank);
+            const status = feedbackButton.dataset.feedback;
+            feedback[rootFeedbackKey(currentAsset, rank)] = status;
+            saveFeedback();
+            renderRootCause();
+            return;
+          }
+          const openRoot = event.target.closest("[data-open-root]");
+          if (openRoot) {
+            currentAsset = openRoot.dataset.openRoot;
+            fillAssetSelect(byId("root-asset"), currentAsset);
+            activateTab("root-cause");
+            renderRootCause();
+          }
+        });
+      }
+
+      function renderAll() {
+        tags = Object.keys(data.assets || {});
+        if (!tags.length) throw new Error("dashboard_data.json contains no asset series.");
+        currentAsset = tags[0];
+        if (!Array.isArray(data.replay?.available_weeks) || !data.replay.available_weeks.length) throw new Error("Dashboard JSON has no available replay weeks.");
+        if (!isNumericValue(data.replay?.current_week)) throw new Error("Dashboard JSON is missing replay.current_week; replay state is not fabricated.");
+        const availableWeeks = data.replay.available_weeks.map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+        selectedWeek = availableWeeks.includes(16) ? 16 : availableWeeks[0];
+        if (window.Chart) Chart.defaults.font.family = getComputedStyle(document.documentElement).fontFamily;
+        const incidentSource = sourceFor("incident");
+        byId("asof-badge").innerHTML = `As of ${dateText(data.summary?.as_of, incidentSource)}`;
+        byId("replay-badge").innerHTML = `Replay ${number(selectedWeek, sourceFor("all-condition"), { decimals: 0, prefix: "W" })}`;
+        byId("data-origin").textContent = location.protocol === "file:" ? "Embedded dashboard snapshot" : "./dashboard_data.json";
+        fillAssetSelect(byId("root-asset"), currentAsset);
+        fillAssetSelect(byId("replay-asset"), currentAsset);
+        renderExecutive();
+        renderProblemTank();
+        renderReplay();
+        renderRootCause();
+      }
+
+      async function start() {
+        connectControls();
+        try {
+          if (location.protocol === "file:") {
+            await loadEmbeddedSnapshot();
+            if (typeof EMBEDDED_DASHBOARD_DATA === "undefined") {
+              throw new Error("No embedded snapshot is available. Run pipeline.py to generate dashboard_data.json and dashboard_data_embedded.js; no sample data is substituted.");
+            }
+            data = EMBEDDED_DASHBOARD_DATA;
+          } else {
+            const response = await fetch("./dashboard_data.json", { cache: "no-store" });
+            if (!response.ok) throw new Error(`Could not load ./dashboard_data.json (HTTP ${response.status}). Run pipeline.py first.`);
+            data = await response.json();
+          }
+          if (!data || !data.summary || !data.assets) throw new Error("Dashboard JSON is missing required summary/assets fields.");
+          renderAll();
+        } catch (error) {
+          showLoadError(error.message || String(error));
+          byId("data-origin").textContent = "Dashboard data unavailable";
+        }
+      }
+
+      start();
+    })();
+  </script>
+</body>
+</html>
